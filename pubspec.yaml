@@ -1,0 +1,59 @@
+name: finapp
+description: "Финансовое приложение с управлением задачами"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.6.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Database
+  drift: ^2.23.1
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.5
+  path: ^1.9.0
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # Internationalization
+  intl: ^0.20.2
+
+  # UUID generation
+  uuid: ^4.5.1
+
+  # Google Sheets integration
+  googleapis: ^13.2.0
+  googleapis_auth: ^1.6.0
+  http: ^1.2.0
+  shared_preferences: ^2.3.3
+
+  # PDF generation
+  pdf: ^3.10.8
+  printing: ^5.13.1
+
+  # File picker (backup/restore)
+  file_picker: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+  # Code generation
+  build_runner: ^2.4.14
+  drift_dev: ^2.23.1
+  riverpod_generator: ^2.6.1
+
+flutter:
+  uses-material-design: true
