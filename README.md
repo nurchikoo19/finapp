@@ -74,3 +74,24 @@ flutter build apk
 # Windows
 flutter build windows
 ```
+
+### Tests
+
+```bash
+# All tests
+flutter test
+
+# By suite
+flutter test test/unit/num_to_words_test.dart   # 39 unit tests — Russian number-to-words
+flutter test test/unit/database_test.dart        # 25 unit tests — DB logic (balances, invoices, payroll…)
+flutter test test/widget/widgets_test.dart       # 25 widget tests — SummaryCard, StatusBadge, PriorityBadge
+flutter test test/widget/screens_test.dart       # 15 widget tests — AppBar, Drawer, navigation, Dashboard
+```
+
+| Suite | Tests | Scope |
+| --- | --- | --- |
+| `unit/num_to_words_test` | 39 | `numToWordsSom` — Russian number→words conversion incl. feminine thousands |
+| `unit/database_test` | 25 | In-memory Drift DB: balance updates, invoice lifecycle, budgets, P&L, payroll |
+| `widget/widgets_test` | 25 | Pure widget rendering: SummaryCard, StatusBadge, PriorityBadge |
+| `widget/screens_test` | 15 | Full app with mocked providers: AppBar, Drawer, navigation, DashboardScreen |
+  
