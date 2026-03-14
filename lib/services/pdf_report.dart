@@ -285,4 +285,179 @@ class PdfReportService {
           ),
         ),
       );
+
+  // ─── Справка об изменениях налогового калькулятора ──────────────────────────
+  static Future<void> printTaxChangelog() async {
+    final font = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+
+    const blue = PdfColor.fromInt(0xFF1565C0);
+    const red = PdfColor.fromInt(0xFFB71C1C);
+    const green = PdfColor.fromInt(0xFF1B5E20);
+    const orange = PdfColor.fromInt(0xFFE65100);
+    const grey = PdfColor.fromInt(0xFF616161);
+    const bgLight = PdfColor.fromInt(0xFFF5F5F5);
+
+    pw.Widget sectionHeader(String title, PdfColor color) => pw.Container(
+          margin: const pw.EdgeInsets.only(top: 16, bottom: 6),
+          padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: pw.BoxDecoration(
+            color: color,
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Text(title,
+              style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white)),
+        );
+
+    pw.Widget changeRow(String label, String before, String after,
+            {bool isNew = false}) =>
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 6),
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            color: bgLight,
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(label,
+                  style: pw.TextStyle(
+                      fontSize: 10, fontWeight: pw.FontWeight.bold)),
+              pw.SizedBox(height: 4),
+              if (!isNew) ...[
+                pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                  pw.Text('Было:   ',
+                      style: pw.TextStyle(
+                          fontSize: 9,
+                          color: red,
+                          fontWeight: pw.FontWeight.bold)),
+                  pw.Expanded(
+                      child: pw.Text(before,
+                          style: const pw.TextStyle(fontSize: 9, color: red))),
+                ]),
+                pw.SizedBox(height: 3),
+              ],
+              pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                pw.Text(isNew ? 'Добавлено: ' : 'Стало:  ',
+                    style: pw.TextStyle(
+                        fontSize: 9,
+                        color: green,
+                        fontWeight: pw.FontWeight.bold)),
+                pw.Expanded(
+                    child: pw.Text(after,
+                        style: const pw.TextStyle(fontSize: 9, color: green))),
+              ]),
+            ],
+          ),
+        );
+
+    pw.Widget noteBox(String text) => pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 6),
+          padding: const pw.EdgeInsets.all(8),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: grey),
+            borderRadius: pw.BorderRadius.circular(4),
+          ),
+          child: pw.Text(text, style: const pw.TextStyle(fontSize: 9)),
+        );
+
+    final doc = pw.Document();
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+      theme: pw.ThemeData.withFont(base: font, bold: fontBold),
+      build: (ctx) => [
+        pw.Center(
+          child: pw.Column(children: [
+            pw.Text('Изменения в налоговом калькуляторе',
+                style: pw.TextStyle(
+                    fontSize: 16,
+                    fontWeight: pw.FontWeight.bold,
+                    color: blue)),
+            pw.SizedBox(height: 4),
+            pw.Text('Приведено в соответствие с Налоговым кодексом КР',
+                style: const pw.TextStyle(fontSize: 10, color: grey)),
+            pw.SizedBox(height: 2),
+            pw.Text(
+                'Дата: ${DateFormat('dd.MM.yyyy').format(DateTime.now())}',
+                style: const pw.TextStyle(fontSize: 9, color: grey)),
+          ]),
+        ),
+        pw.Divider(height: 20),
+
+        sectionHeader('1. Исправлено', red),
+        changeRow(
+          'НДФЛ — база расчёта (ст. 163 НК КР)',
+          'НДФЛ = ФОТ × 10%\n'
+              'ОРС не исключалась из налогооблагаемого дохода — завышенный результат.',
+          'НДФЛ = (ФОТ − ОРС) × 10% = ФОТ × 9%\n'
+              'ОРС (10%) исключается из налогооблагаемой базы согласно ст. 163 НК КР\n'
+              '(обязательные пенсионные взносы — доход, освобождённый от НДФЛ).',
+        ),
+
+        sectionHeader('2. Добавлено', green),
+        changeRow(
+          'Налог с продаж (НсП) — ст. 392 НК КР [ОСН]',
+          '',
+          '2% от выручки при расчётах наличными.\n'
+              'Включается опционально через переключатель в интерфейсе.\n'
+              'Не применяется к безналичным (б/н) платежам.',
+          isNew: true,
+        ),
+        changeRow(
+          'Настраиваемая ставка единого налога [УСН]',
+          '',
+          'Поле ввода ставки (по умолчанию 6%).\n'
+              'Диапазон по видам деятельности согласно Разделу IX НК КР:\n'
+              '  • Производство / сельское хозяйство: 1–2%\n'
+              '  • Торговля (оптовая, розничная): 3–4%\n'
+              '  • Услуги и прочая деятельность: 6%',
+          isNew: true,
+        ),
+
+        sectionHeader('3. Уточнено', orange),
+        changeRow(
+          'НДС — вычет входящего НДС [ОСН]',
+          'Показан только начисленный НДС без пояснений.',
+          'Добавлено примечание: НДС к уплате = НДС начисленный − НДС к зачёту.\n'
+              'Добавлена ссылка на ст. 211 НК КР.',
+        ),
+        changeRow(
+          'Порядок строк и пояснения к НДФЛ',
+          '"НДФЛ 10% от ФОТ" — стояла перед ОРС.',
+          'ОРС работника выведена первой (логический порядок расчёта).\n'
+              'Подпись: "НДФЛ = ФОТ × 9% (ОРС исключается из базы, ст. 163 НК КР)".',
+        ),
+        changeRow(
+          'УСН — перечень ставок',
+          '"Единый налог: 6% от выручки" (фиксировано).',
+          'Перечень ставок по видам деятельности добавлен в информационный баннер.',
+        ),
+
+        pw.Divider(height: 20),
+        sectionHeader('Справка: действующие ставки (НК КР, 2024)', blue),
+        noteBox(
+          'НДС: 12% (ст. 211 НК КР). Порог регистрации плательщика: 30 млн сом/год (ст. 217).\n'
+          'Налог на прибыль: 10% (ст. 219 НК КР).\n'
+          'НДФЛ: 10% от (ФОТ − ОРС). Эффективно: ФОТ × 9% (ст. 163, 167 НК КР).\n'
+          'ОРС работник: 10% (Закон КР об обязательном пенсионном страховании).\n'
+          'ОРС работодатель: 15% + ФОМС 2% + ОМС 0.25% = итого 17.25% от ФОТ.\n'
+          'НсП (Налог с продаж): 2% от наличной выручки (ст. 392 НК КР).\n'
+          'УСН (Единый налог): 1–6% в зависимости от вида деятельности (Раздел IX НК КР).\n'
+          'Патент: фиксированная сумма — зависит от вида деятельности и региона.',
+        ),
+      ],
+    ));
+
+    await Printing.layoutPdf(
+      onLayout: (_) async => doc.save(),
+      name: 'Изменения_налогового_калькулятора.pdf',
+    );
+  }
 }

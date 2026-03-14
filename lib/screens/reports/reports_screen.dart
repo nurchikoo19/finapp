@@ -1077,6 +1077,10 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
   final _patentCtrl = TextEditingController();
   // ОРС: ФОТ за период вводится вручную или вычисляется из payroll
   final _fotCtrl = TextEditingController();
+  // УСН: ставка единого налога (по умолчанию 6%, варьируется 1–6% по НК КР)
+  final _usnRateCtrl = TextEditingController(text: '6');
+  // НсП: включить расчёт налога с продаж (ст. 392 НК КР)
+  bool _nspEnabled = false;
 
   @override
   void initState() {
@@ -1090,6 +1094,7 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
   void dispose() {
     _patentCtrl.dispose();
     _fotCtrl.dispose();
+    _usnRateCtrl.dispose();
     super.dispose();
   }
 
@@ -1115,15 +1120,27 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
         }
         final netProfit = revenue - expenses;
 
-        // ОРС / ФОМС расчёт
+        // ─── Социальные взносы ──────────────────────────────────────────
         final fot = double.tryParse(
                 _fotCtrl.text.replaceAll(' ', '').replaceAll(',', '.')) ??
             0.0;
-        // Работодатель: 17.25% (ОРС 15% + ФОМС 2% + ОМС 0.25%)
+        // Работодатель: 17.25% от ФОТ (ОРС 15% + ФОМС 2% + ОМС 0.25%)
         final orsEmployer = fot * 0.1725;
-        // Работник: НДФЛ 10% + ОРС 10%
-        final orsEmployee = fot * 0.10; // ОРС работника
-        final ndfl = fot * 0.10; // Подоходный налог
+        // Работник: ОРС 10% (ст. 16 Закона КР об ОПС)
+        final orsEmployee = fot * 0.10;
+        // НДФЛ: база = ФОТ − ОРС (ОРС исключена из налогооблагаемого дохода,
+        // ст. 163 НК КР). Было ФОТ × 10%, стало (ФОТ − ОРС) × 10% = ФОТ × 9%.
+        final ndfl = (fot - orsEmployee) * 0.10;
+
+        // ─── Налог с продаж (ст. 392 НК КР) ─────────────────────────────
+        // 2% от выручки при расчётах наличными. Не применяется к безналичным.
+        final nsp = revenue * 0.02;
+
+        // ─── УСН ставка ───────────────────────────────────────────────────
+        final usnRate =
+            (double.tryParse(_usnRateCtrl.text.replaceAll(',', '.')) ?? 6.0)
+                .clamp(0.1, 20.0) /
+            100.0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -1173,13 +1190,14 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
               // Regime-specific taxes
               if (_regime == 'osn') ...[
                 _TaxInfoBanner(
-                    text: 'ОСН: НДС 12% + Налог на прибыль 10%.\n'
-                        'НДС обязателен при обороте от 30 млн сом/год.'),
+                    text: 'ОСН: НДС 12% (ст. 211 НК КР) + Налог на прибыль 10% (ст. 219 НК КР).\n'
+                        'Обязателен при обороте от 30 млн сом/год.\n'
+                        'НДС к уплате = НДС начисленный − НДС к зачёту (вычет входящего НДС).'),
                 const SizedBox(height: 12),
                 _TaxRow(
                   icon: Icons.percent,
-                  title: 'НДС',
-                  subtitle: '12% в т.ч. от выручки = Выручка × 12 / 112',
+                  title: 'НДС начисленный',
+                  subtitle: '12% в т.ч. от выручки (Выручка × 12/112)',
                   amount: revenue * 12 / 112,
                   fmt: fmt,
                   color: Colors.deepOrange,
@@ -1188,17 +1206,49 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
                 _TaxRow(
                   icon: Icons.account_balance,
                   title: 'Налог на прибыль',
-                  subtitle: '10% от налогооблагаемой прибыли',
+                  subtitle: '10% от налогооблагаемой прибыли (ст. 219 НК КР)',
                   amount: netProfit > 0 ? netProfit * 0.10 : 0,
                   fmt: fmt,
                   color: Colors.red,
                 ),
                 const SizedBox(height: 8),
+                // ─── Налог с продаж (НсП) ────────────────────────────────
+                Row(
+                  children: [
+                    Switch(
+                      value: _nspEnabled,
+                      onChanged: (v) => setState(() => _nspEnabled = v),
+                    ),
+                    const SizedBox(width: 4),
+                    const Expanded(
+                      child: Text(
+                        'Добавить НсП (Налог с продаж, ст. 392 НК КР) — 2% от наличной выручки',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_nspEnabled) ...[
+                  const SizedBox(height: 4),
+                  _TaxRow(
+                    icon: Icons.point_of_sale,
+                    title: 'Налог с продаж (НсП)',
+                    subtitle: '2% от выручки (только наличные расчёты)',
+                    amount: nsp,
+                    fmt: fmt,
+                    color: Colors.brown,
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 _TaxRow(
                   icon: Icons.calculate,
                   title: 'Итого налогов (ОСН)',
-                  subtitle: 'НДС + Налог на прибыль',
-                  amount: revenue * 12 / 112 + (netProfit > 0 ? netProfit * 0.10 : 0),
+                  subtitle: _nspEnabled
+                      ? 'НДС + Налог на прибыль + НсП'
+                      : 'НДС + Налог на прибыль',
+                  amount: revenue * 12 / 112 +
+                      (netProfit > 0 ? netProfit * 0.10 : 0) +
+                      (_nspEnabled ? nsp : 0),
                   fmt: fmt,
                   color: Colors.red.shade800,
                   isBold: true,
@@ -1207,15 +1257,47 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
 
               if (_regime == 'usn') ...[
                 _TaxInfoBanner(
-                    text: 'УСН (Единый налог): 6% от выручки.\n'
+                    text: 'УСН (Единый налог, Раздел IX НК КР).\n'
                         'Освобождение от НДС и налога на прибыль.\n'
-                        'Порог применения: до 30 млн сом выручки в год.'),
+                        'Порог: до 30 млн сом выручки в год.\n'
+                        'Ставка зависит от вида деятельности:\n'
+                        '  • Производство / с/х: 1–2%\n'
+                        '  • Торговля (опт/розница): 3–4%\n'
+                        '  • Услуги и прочее: 6%'),
                 const SizedBox(height: 12),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    child: Row(children: [
+                      const Icon(Icons.tune, size: 18),
+                      const SizedBox(width: 8),
+                      const Text('Ставка единого налога (%)',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _usnRateCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: const InputDecoration(
+                            hintText: 'напр. 6',
+                            suffixText: '%',
+                            isDense: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                        ),
+                      ),
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 _TaxRow(
                   icon: Icons.percent,
                   title: 'Единый налог',
-                  subtitle: '6% от выручки',
-                  amount: revenue * 0.06,
+                  subtitle:
+                      '${_usnRateCtrl.text.isEmpty ? "6" : _usnRateCtrl.text}% от выручки',
+                  amount: revenue * usnRate,
                   fmt: fmt,
                   color: Colors.orange,
                   isBold: true,
@@ -1286,7 +1368,8 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
               const SizedBox(height: 8),
               _TaxInfoBanner(
                   text: 'Работодатель: 17.25% от ФОТ (ОРС 15% + ФОМС 2% + ОМС 0.25%)\n'
-                      'Работник: НДФЛ 10% + ОРС 10% (удерживается из зарплаты)'),
+                      'Работник: ОРС 10% + НДФЛ 10% от (ФОТ − ОРС)\n'
+                      '  → НДФЛ = ФОТ × 9% (ОРС исключается из базы, ст. 163 НК КР)'),
               const SizedBox(height: 10),
               TextField(
                 controller: _fotCtrl,
@@ -1312,22 +1395,36 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
                 const SizedBox(height: 4),
                 _TaxRow(
                   icon: Icons.person,
-                  title: 'НДФЛ (удержать с работника)',
-                  subtitle: '10% от ФОТ',
-                  amount: ndfl,
+                  title: 'ОРС работника',
+                  subtitle: '10% от ФОТ (ст. 16 Закона КР об ОПС)',
+                  amount: orsEmployee,
                   fmt: fmt,
                   color: Colors.indigo,
                 ),
                 const SizedBox(height: 4),
                 _TaxRow(
                   icon: Icons.person,
-                  title: 'ОРС работника',
-                  subtitle: '10% от ФОТ',
-                  amount: orsEmployee,
+                  title: 'НДФЛ (удержать с работника)',
+                  subtitle: '10% от (ФОТ − ОРС) = ФОТ × 9% (ст. 163 НК КР)',
+                  amount: ndfl,
                   fmt: fmt,
                   color: Colors.indigo,
                 ),
               ],
+
+              // ─── Экспорт справки об изменениях ───────────────────────────
+              const SizedBox(height: 28),
+              const Divider(),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.picture_as_pdf),
+                  label: const Text('Справка об изменениях (PDF)'),
+                  onPressed: () => PdfReportService.printTaxChangelog(),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         );
