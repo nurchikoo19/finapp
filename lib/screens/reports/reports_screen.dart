@@ -1051,6 +1051,51 @@ class _CashFlowTab extends ConsumerWidget {
   }
 }
 
+// ─── УСН — строка вида деятельности с разбивкой по типу оплаты ───────────────
+
+class _UsnEntry {
+  final nameCtrl = TextEditingController();
+  final cashCtrl = TextEditingController();
+  final nonCashCtrl = TextEditingController();
+  final cashRateCtrl = TextEditingController();
+  final nonCashRateCtrl = TextEditingController();
+
+  _UsnEntry({
+    String name = '',
+    String cashRate = '4',
+    String nonCashRate = '2',
+  }) {
+    nameCtrl.text = name;
+    cashRateCtrl.text = cashRate;
+    nonCashRateCtrl.text = nonCashRate;
+  }
+
+  double get cash =>
+      double.tryParse(cashCtrl.text.replaceAll(' ', '').replaceAll(',', '.')) ??
+      0;
+  double get nonCash =>
+      double.tryParse(
+          nonCashCtrl.text.replaceAll(' ', '').replaceAll(',', '.')) ??
+      0;
+  double get cashRatePct =>
+      (double.tryParse(cashRateCtrl.text.replaceAll(',', '.')) ?? 0)
+          .clamp(0, 100) /
+      100;
+  double get nonCashRatePct =>
+      (double.tryParse(nonCashRateCtrl.text.replaceAll(',', '.')) ?? 0)
+          .clamp(0, 100) /
+      100;
+  double get tax => cash * cashRatePct + nonCash * nonCashRatePct;
+
+  void dispose() {
+    nameCtrl.dispose();
+    cashCtrl.dispose();
+    nonCashCtrl.dispose();
+    cashRateCtrl.dispose();
+    nonCashRateCtrl.dispose();
+  }
+}
+
 // ─── Tax Calculator Tab (КР) ──────────────────────────────────────────────────
 
 class _TaxTab extends ConsumerStatefulWidget {
@@ -1077,24 +1122,32 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
   final _patentCtrl = TextEditingController();
   // ОРС: ФОТ за период вводится вручную или вычисляется из payroll
   final _fotCtrl = TextEditingController();
-  // УСН: ставка единого налога (по умолчанию 6%, варьируется 1–6% по НК КР)
-  final _usnRateCtrl = TextEditingController(text: '6');
+  // УСН: строки видов деятельности с разбивкой наличные / безналичные
+  late List<_UsnEntry> _usnEntries;
   // НсП: включить расчёт налога с продаж (ст. 392 НК КР)
   bool _nspEnabled = false;
 
   @override
   void initState() {
     super.initState();
-    // Default to company's saved regime
     final company = ref.read(selectedCompanyProvider);
     _regime = company?.taxRegime ?? 'osn';
+    // Предзаполнение видами деятельности пользователя:
+    //   объект с землей  — безнал 4%, наличные 6%
+    //   капсульный/модульный дом (собственное производство) — безнал 2%, наличные 4%
+    _usnEntries = [
+      _UsnEntry(name: 'Продажа объекта с землей', cashRate: '6', nonCashRate: '4'),
+      _UsnEntry(name: 'Капсульный / модульный дом (производство)', cashRate: '4', nonCashRate: '2'),
+    ];
   }
 
   @override
   void dispose() {
     _patentCtrl.dispose();
     _fotCtrl.dispose();
-    _usnRateCtrl.dispose();
+    for (final e in _usnEntries) {
+      e.dispose();
+    }
     super.dispose();
   }
 
@@ -1136,11 +1189,8 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
         // 2% от выручки при расчётах наличными. Не применяется к безналичным.
         final nsp = revenue * 0.02;
 
-        // ─── УСН ставка ───────────────────────────────────────────────────
-        final usnRate =
-            (double.tryParse(_usnRateCtrl.text.replaceAll(',', '.')) ?? 6.0)
-                .clamp(0.1, 20.0) /
-            100.0;
+        // ─── УСН итог по всем строкам ─────────────────────────────────────
+        final usnTotal = _usnEntries.fold(0.0, (s, e) => s + e.tax);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -1258,50 +1308,194 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
               if (_regime == 'usn') ...[
                 _TaxInfoBanner(
                     text: 'УСН (Единый налог, Раздел IX НК КР).\n'
-                        'Освобождение от НДС и налога на прибыль.\n'
-                        'Порог: до 30 млн сом выручки в год.\n'
-                        'Ставка зависит от вида деятельности:\n'
-                        '  • Производство / с/х: 1–2%\n'
-                        '  • Торговля (опт/розница): 3–4%\n'
-                        '  • Услуги и прочее: 6%'),
+                        'Без НДС и налога на прибыль. Порог: до 30 млн сом/год.\n'
+                        'Ставка зависит от вида деятельности и типа оплаты:\n'
+                        '  • Производство / с/х:  2% безнал,  4% наличные\n'
+                        '  • Торговля:             2% безнал,  4% наличные\n'
+                        '  • Строительство/недвиж: 4% безнал,  6% наличные\n'
+                        'Введите приходы по каждому виду деятельности отдельно.'),
                 const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    child: Row(children: [
-                      const Icon(Icons.tune, size: 18),
-                      const SizedBox(width: 8),
-                      const Text('Ставка единого налога (%)',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _usnRateCtrl,
-                          keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true),
-                          decoration: const InputDecoration(
-                            hintText: 'напр. 6',
-                            suffixText: '%',
-                            isDense: true,
-                          ),
-                          onChanged: (_) => setState(() {}),
-                        ),
+
+                // ─ Таблица видов деятельности ────────────────────────────
+                ..._usnEntries.asMap().entries.map((entry) {
+                  final i = entry.key;
+                  final e = entry.value;
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(children: [
+                            Expanded(
+                              child: TextField(
+                                controller: e.nameCtrl,
+                                decoration: const InputDecoration(
+                                  labelText: 'Вид деятельности',
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline, size: 18),
+                              tooltip: 'Удалить',
+                              onPressed: _usnEntries.length > 1
+                                  ? () => setState(() {
+                                        e.dispose();
+                                        _usnEntries.removeAt(i);
+                                      })
+                                  : null,
+                            ),
+                          ]),
+                          const SizedBox(height: 10),
+                          // Наличные
+                          Row(children: [
+                            const Icon(Icons.payments_outlined,
+                                size: 16, color: Colors.deepOrange),
+                            const SizedBox(width: 6),
+                            const SizedBox(
+                                width: 80,
+                                child: Text('Наличные',
+                                    style: TextStyle(fontSize: 12))),
+                            Expanded(
+                              child: TextField(
+                                controller: e.cashCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                decoration: InputDecoration(
+                                  labelText: 'Сумма прихода',
+                                  suffixText: _sym(widget.currency),
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 70,
+                              child: TextField(
+                                controller: e.cashRateCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Ставка',
+                                  suffixText: '%',
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 80,
+                              child: Text(
+                                e.cash > 0
+                                    ? fmt.format(e.cash * e.cashRatePct)
+                                    : '—',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.deepOrange,
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ]),
+                          const SizedBox(height: 6),
+                          // Безналичные
+                          Row(children: [
+                            const Icon(Icons.account_balance_outlined,
+                                size: 16, color: Colors.teal),
+                            const SizedBox(width: 6),
+                            const SizedBox(
+                                width: 80,
+                                child: Text('Безналичные',
+                                    style: TextStyle(fontSize: 12))),
+                            Expanded(
+                              child: TextField(
+                                controller: e.nonCashCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                decoration: InputDecoration(
+                                  labelText: 'Сумма прихода',
+                                  suffixText: _sym(widget.currency),
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 70,
+                              child: TextField(
+                                controller: e.nonCashRateCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(
+                                    decimal: true),
+                                decoration: const InputDecoration(
+                                  labelText: 'Ставка',
+                                  suffixText: '%',
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setState(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            SizedBox(
+                              width: 80,
+                              child: Text(
+                                e.nonCash > 0
+                                    ? fmt.format(e.nonCash * e.nonCashRatePct)
+                                    : '—',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.teal,
+                                    fontWeight: FontWeight.bold),
+                                textAlign: TextAlign.right,
+                              ),
+                            ),
+                          ]),
+                          if (e.tax > 0) ...[
+                            const Divider(height: 14),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                const Text('Налог по строке: ',
+                                    style: TextStyle(fontSize: 12)),
+                                Text(fmt.format(e.tax),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange)),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
-                    ]),
-                  ),
+                    ),
+                  );
+                }),
+
+                // Добавить строку
+                TextButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Добавить вид деятельности'),
+                  onPressed: () => setState(() =>
+                      _usnEntries.add(_UsnEntry())),
                 ),
                 const SizedBox(height: 8),
-                _TaxRow(
-                  icon: Icons.percent,
-                  title: 'Единый налог',
-                  subtitle:
-                      '${_usnRateCtrl.text.isEmpty ? "6" : _usnRateCtrl.text}% от выручки',
-                  amount: revenue * usnRate,
-                  fmt: fmt,
-                  color: Colors.orange,
-                  isBold: true,
-                ),
+
+                // Итого
+                if (usnTotal > 0)
+                  _TaxRow(
+                    icon: Icons.calculate,
+                    title: 'Итого единый налог (УСН)',
+                    subtitle: 'Сумма по всем видам и типам оплаты',
+                    amount: usnTotal,
+                    fmt: fmt,
+                    color: Colors.orange.shade800,
+                    isBold: true,
+                  ),
               ],
 
               if (_regime == 'patent') ...[
