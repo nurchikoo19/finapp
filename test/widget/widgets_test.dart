@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:finapp/widgets/summary_card.dart';
-import 'package:finapp/widgets/status_badge.dart';
-import 'package:finapp/widgets/priority_badge.dart';
+import 'package:tabys/widgets/summary_card.dart';
+import 'package:tabys/widgets/status_badge.dart';
+import 'package:tabys/widgets/priority_badge.dart';
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 

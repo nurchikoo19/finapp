@@ -1,4 +1,4 @@
-name: finapp
+name: tabys
 description: "Финансовое приложение с управлением задачами"
 publish_to: 'none'
 version: 1.0.0+1

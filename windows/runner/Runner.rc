@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.finapp" "\0"
-            VALUE "FileDescription", "finapp" "\0"
+            VALUE "CompanyName", "com.tabys" "\0"
+            VALUE "FileDescription", "tabys" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "finapp" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.finapp. All rights reserved." "\0"
-            VALUE "OriginalFilename", "finapp.exe" "\0"
-            VALUE "ProductName", "finapp" "\0"
+            VALUE "InternalName", "tabys" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.tabys. All rights reserved." "\0"
+            VALUE "OriginalFilename", "tabys.exe" "\0"
+            VALUE "ProductName", "tabys" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

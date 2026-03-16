@@ -228,7 +228,7 @@ class _CompanySettingsScreenState
                 leading: const Icon(Icons.shortcut, color: Colors.blue),
                 title: const Text('Создать ярлык на рабочем столе'),
                 subtitle: const Text(
-                  'Добавляет FinApp на рабочий стол',
+                  'Добавляет Tabys на рабочий стол',
                   style: TextStyle(fontSize: 12),
                 ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14),
@@ -415,7 +415,7 @@ class _CompanySettingsScreenState
       final desktop =
           Platform.environment['USERPROFILE']?.replaceAll('/', '\\') ??
               'C:\\Users\\Public';
-      final linkPath = '$desktop\\Desktop\\FinApp.lnk';
+      final linkPath = '$desktop\\Desktop\\Tabys.lnk';
 
       final script =
           '\$ws = New-Object -ComObject WScript.Shell; '

@@ -43,7 +43,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -95,6 +95,12 @@ class AppDatabase extends _$AppDatabase {
       if (from < 11) {
         await m.addColumn(products, products.minQuantity);
         await m.addColumn(contracts, contracts.signedDate);
+      }
+      if (from < 12) {
+        await m.addColumn(categories, categories.taxRate);
+      }
+      if (from < 13) {
+        await m.addColumn(transactions, transactions.exchangeRate);
       }
     },
   );
@@ -272,8 +278,9 @@ class AppDatabase extends _$AppDatabase {
       await updateAccountBalance(tx.accountId.value, -tx.amount.value);
     } else if (tx.type.value == 'transfer' &&
         tx.toAccountId.value != null) {
+      final rate = tx.exchangeRate.value ?? 1.0;
       await updateAccountBalance(tx.accountId.value, -tx.amount.value);
-      await updateAccountBalance(tx.toAccountId.value!, tx.amount.value);
+      await updateAccountBalance(tx.toAccountId.value!, tx.amount.value * rate);
     }
     return id;
   }
@@ -287,8 +294,9 @@ class AppDatabase extends _$AppDatabase {
     } else if (tx.type == 'expense') {
       await updateAccountBalance(tx.accountId, tx.amount);
     } else if (tx.type == 'transfer' && tx.toAccountId != null) {
+      final rate = tx.exchangeRate ?? 1.0;
       await updateAccountBalance(tx.accountId, tx.amount);
-      await updateAccountBalance(tx.toAccountId!, -tx.amount);
+      await updateAccountBalance(tx.toAccountId!, -(tx.amount * rate));
     }
     return (delete(transactions)..where((t) => t.id.equals(id))).go();
   }
@@ -301,8 +309,9 @@ class AppDatabase extends _$AppDatabase {
     } else if (old.type == 'expense') {
       await updateAccountBalance(old.accountId, old.amount);
     } else if (old.type == 'transfer' && old.toAccountId != null) {
+      final oldRate = old.exchangeRate ?? 1.0;
       await updateAccountBalance(old.accountId, old.amount);
-      await updateAccountBalance(old.toAccountId!, -old.amount);
+      await updateAccountBalance(old.toAccountId!, -(old.amount * oldRate));
     }
     await (update(transactions)..where((t) => t.id.equals(id))).write(entry);
     // Apply new balance effect
@@ -311,8 +320,9 @@ class AppDatabase extends _$AppDatabase {
     } else if (entry.type.value == 'expense') {
       await updateAccountBalance(entry.accountId.value, -entry.amount.value);
     } else if (entry.type.value == 'transfer' && entry.toAccountId.value != null) {
+      final newRate = entry.exchangeRate.value ?? 1.0;
       await updateAccountBalance(entry.accountId.value, -entry.amount.value);
-      await updateAccountBalance(entry.toAccountId.value!, entry.amount.value);
+      await updateAccountBalance(entry.toAccountId.value!, entry.amount.value * newRate);
     }
   }
 
@@ -664,6 +674,15 @@ class AppDatabase extends _$AppDatabase {
             ..where((t) => t.period.equals(period)))
           .get();
 
+  Future<List<PayrollRecord>> getPayrollByRange(
+      int companyId, DateTime from, DateTime to) =>
+      (select(payrollRecords)
+            ..where((t) => t.companyId.equals(companyId))
+            ..where((t) => t.period.isBiggerOrEqualValue(from))
+            ..where((t) => t.period.isSmallerOrEqualValue(to))
+            ..orderBy([(t) => OrderingTerm.desc(t.period)]))
+          .get();
+
   Future<int> insertPayroll(PayrollRecordsCompanion entry) async {
     final id = await into(payrollRecords).insert(entry);
     if (entry.accountId.value != null && entry.paidAt.value != null) {
@@ -686,7 +705,7 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'finapp.sqlite'));
+    final file = File(p.join(dbFolder.path, 'tabys.sqlite'));
     return NativeDatabase.createInBackground(file);
   });
 }

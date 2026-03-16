@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 class BackupService {
   static Future<File> _dbFile() async {
     final dir = await getApplicationDocumentsDirectory();
-    return File(p.join(dir.path, 'finapp.sqlite'));
+    return File(p.join(dir.path, 'tabys.sqlite'));
   }
 
   /// Creates a backup. Returns the saved path, or null if cancelled.
@@ -16,7 +16,7 @@ class BackupService {
     if (!await db.exists()) return '';
 
     final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    final fileName = 'finapp_backup_$dateStr.db';
+    final fileName = 'tabys_backup_$dateStr.db';
 
     if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
       final savePath = await FilePicker.platform.saveFile(

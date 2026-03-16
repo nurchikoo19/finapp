@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:finapp/app.dart';
-import 'package:finapp/db/database.dart';
-import 'package:finapp/providers/database_provider.dart';
+import 'package:tabys/app.dart';
+import 'package:tabys/db/database.dart';
+import 'package:tabys/providers/database_provider.dart';
 
 // ─── Мок БД: переопределяет stream-методы, чтобы не создавать ──────────────
 // Drift QueryStream-подписки. Drift вызывает StreamQueryStore.markAsClosed()
@@ -88,7 +88,7 @@ Widget _makeApp(AppDatabase testDb) {
       ],
       supportedLocales: const [Locale('ru'), Locale('en')],
       locale: const Locale('ru'),
-      home: const FinApp(),
+      home: const TabysApp(),
     ),
   );
 }
@@ -120,7 +120,7 @@ Future<void> _openDrawer(WidgetTester tester, AppDatabase db) async {
 void main() {
   // ─── AppBar ────────────────────────────────────────────────────────────
 
-  group('FinApp — AppBar', () {
+  group('Tabys — AppBar', () {
     testWidgets('начальный заголовок — Главная', (tester) async {
       final db = _setupDb(tester);
       await tester.pumpWidget(_makeApp(db));
@@ -159,7 +159,7 @@ void main() {
 
   // ─── Drawer ────────────────────────────────────────────────────────────
 
-  group('FinApp — Drawer', () {
+  group('Tabys — Drawer', () {
     testWidgets('нажатие меню открывает drawer', (tester) async {
       final db = _setupDb(tester);
       await _openDrawer(tester, db);
@@ -209,7 +209,7 @@ void main() {
 
   // ─── Навигация ─────────────────────────────────────────────────────────
 
-  group('FinApp — навигация', () {
+  group('Tabys — навигация', () {
     Future<void> navigateTo(
         WidgetTester tester, AppDatabase db, String label) async {
       await _openDrawer(tester, db);

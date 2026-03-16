@@ -17,14 +17,14 @@ import 'screens/inventory/inventory_screen.dart';
 import 'screens/contracts/contracts_screen.dart';
 import 'screens/payroll/payroll_screen.dart';
 
-class FinApp extends ConsumerStatefulWidget {
-  const FinApp({super.key});
+class TabysApp extends ConsumerStatefulWidget {
+  const TabysApp({super.key});
 
   @override
-  ConsumerState<FinApp> createState() => _FinAppState();
+  ConsumerState<TabysApp> createState() => _TabysAppState();
 }
 
-class _FinAppState extends ConsumerState<FinApp> {
+class _TabysAppState extends ConsumerState<TabysApp> {
   int _selectedIndex = 0;
 
   @override

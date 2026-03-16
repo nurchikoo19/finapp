@@ -105,7 +105,7 @@ class TelegramService {
         DateFormat('MMMM yyyy', 'ru').format(now);
 
     final buf = StringBuffer();
-    buf.writeln('📊 <b>FinApp — $companyName</b>');
+    buf.writeln('📊 <b>Tabys — $companyName</b>');
     buf.writeln(
         DateFormat('dd.MM.yyyy', 'ru').format(now));
     buf.writeln();

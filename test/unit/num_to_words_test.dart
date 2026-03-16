@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:finapp/utils/num_to_words.dart';
+import 'package:tabys/utils/num_to_words.dart';
 
 void main() {
   group('numToWordsSom — нули и однозначные', () {

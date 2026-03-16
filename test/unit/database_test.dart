@@ -1,6 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:finapp/db/database.dart';
+import 'package:tabys/db/database.dart';
 
 void main() {
   late AppDatabase db;

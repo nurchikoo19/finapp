@@ -46,7 +46,7 @@ class MyApp extends ConsumerWidget {
     );
 
     return MaterialApp(
-      title: 'FinApp',
+      title: 'Tabys',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
       theme: baseTheme.copyWith(colorScheme: colorScheme),
@@ -74,11 +74,11 @@ class _HomeRouter extends ConsumerWidget {
     final companiesAsync = ref.watch(companiesProvider);
     return companiesAsync.when(
       data: (companies) =>
-          companies.isEmpty ? const OnboardingScreen() : const FinApp(),
+          companies.isEmpty ? const OnboardingScreen() : const TabysApp(),
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const FinApp(),
+      error: (_, __) => const TabysApp(),
     );
   }
 }
