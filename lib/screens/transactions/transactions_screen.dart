@@ -147,7 +147,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               label: const Text('Добавить'),
               onPressed: () => showDialog(
                 context: context,
-                builder: (_) => _TransactionDialog(companyId: company.id),
+                builder: (_) => TransactionDialog(companyId: company.id),
               ),
             )
           : null,
@@ -346,7 +346,7 @@ class _TxTile extends ConsumerWidget {
         ),
         onTap: () => showDialog(
           context: context,
-          builder: (_) => _TransactionDialog(
+          builder: (_) => TransactionDialog(
             companyId: tx.companyId,
             existing: tx,
           ),
@@ -409,17 +409,17 @@ class _TxTile extends ConsumerWidget {
   }
 }
 
-class _TransactionDialog extends ConsumerStatefulWidget {
+class TransactionDialog extends ConsumerStatefulWidget {
   final int companyId;
   final Transaction? existing;
 
-  const _TransactionDialog({required this.companyId, this.existing});
+  const TransactionDialog({super.key, required this.companyId, this.existing});
 
   @override
-  ConsumerState<_TransactionDialog> createState() => _TransactionDialogState();
+  ConsumerState<TransactionDialog> createState() => _TransactionDialogState();
 }
 
-class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
+class _TransactionDialogState extends ConsumerState<TransactionDialog> {
   late final TextEditingController _amountCtrl;
   late final TextEditingController _descCtrl;
   late final TextEditingController _exchangeRateCtrl;

@@ -1320,7 +1320,7 @@ class _InvoiceDialogState extends ConsumerState<_InvoiceDialog> {
                                   fontWeight: FontWeight.w600))),
                       SizedBox(width: 6),
                       SizedBox(
-                          width: 64,
+                          width: 50,
                           child: Text('НДС%',
                               style: TextStyle(
                                   fontSize: 11,
@@ -1564,7 +1564,8 @@ class _ItemRowWidgetState extends State<_ItemRowWidget> {
         ),
       ),
     );
-    ctrl.dispose();
+    // ctrl is local — not disposed here because the sheet's closing animation
+    // may still reference it. GC handles cleanup once the function returns.
   }
 
   @override
@@ -1634,7 +1635,7 @@ class _ItemRowWidgetState extends State<_ItemRowWidget> {
         ),
         const SizedBox(width: 6),
         SizedBox(
-          width: 64,
+          width: 50,
           child: DropdownButtonFormField<double>(
             initialValue: widget.row.vatRate,
             isDense: true,

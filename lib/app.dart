@@ -8,7 +8,7 @@ import 'providers/theme_provider.dart';
 import 'theme/tabys_theme.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/accounts/accounts_screen.dart';
-import 'screens/transactions/transactions_screen.dart';
+import 'screens/transactions/transactions_screen.dart' show TransactionsScreen, TransactionDialog;
 import 'screens/reports/reports_screen.dart';
 import 'screens/tasks/tasks_screen.dart';
 import 'screens/employees/employees_screen.dart';
@@ -120,6 +120,14 @@ class _TabysAppState extends ConsumerState<TabysApp> {
                               builder: (_) => CompanySettingsScreen(
                                 company: selectedCompany,
                               ),
+                            ),
+                          ),
+                  onAddTransaction: selectedCompany == null
+                      ? null
+                      : () => showDialog(
+                            context: context,
+                            builder: (_) => TransactionDialog(
+                              companyId: selectedCompany.id,
                             ),
                           ),
                 ),
@@ -517,11 +525,13 @@ class _TabysTopbar extends ConsumerWidget {
   final String title;
   final Company? company;
   final VoidCallback? onSettings;
+  final VoidCallback? onAddTransaction;
 
   const _TabysTopbar({
     required this.title,
     required this.company,
     this.onSettings,
+    this.onAddTransaction,
   });
 
   @override
@@ -597,7 +607,7 @@ class _TabysTopbar extends ConsumerWidget {
 
           // Add transaction button
           FilledButton.icon(
-            onPressed: () {},
+            onPressed: onAddTransaction,
             icon: const Icon(Icons.add, size: 16),
             label: const Text('Транзакция'),
             style: FilledButton.styleFrom(
