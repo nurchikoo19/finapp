@@ -139,6 +139,12 @@ final last6MonthsTransactionsProvider = StreamProvider<List<Transaction>>((ref) 
 
 // ─── Products Provider ────────────────────────────────────────────────────
 
+final receiptsProvider =
+    StreamProvider.autoDispose.family<List<StockReceipt>, int>(
+  (ref, companyId) =>
+      ref.watch(databaseProvider).watchReceiptsByCompany(companyId),
+);
+
 final productsProvider = StreamProvider<List<Product>>((ref) {
   final company = ref.watch(selectedCompanyProvider);
   if (company == null) return const Stream.empty();

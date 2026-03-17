@@ -6,10 +6,13 @@
 
 #include "generated_plugin_registrant.h"
 
+#include <local_notifier/local_notifier_plugin.h>
 #include <printing/printing_plugin.h>
 #include <sqlite3_flutter_libs/sqlite3_flutter_libs_plugin.h>
 
 void RegisterPlugins(flutter::PluginRegistry* registry) {
+  LocalNotifierPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("LocalNotifierPlugin"));
   PrintingPluginRegisterWithRegistrar(
       registry->GetRegistrarForPlugin("PrintingPlugin"));
   Sqlite3FlutterLibsPluginRegisterWithRegistrar(

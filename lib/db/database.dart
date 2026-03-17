@@ -17,6 +17,8 @@ import 'tables/stock_movements.dart';
 import 'tables/contracts.dart';
 import 'tables/payroll_records.dart';
 import 'tables/invoice_items.dart';
+import 'tables/stock_receipts.dart';
+import 'tables/stock_receipt_items.dart';
 
 part 'database.g.dart';
 
@@ -33,6 +35,8 @@ part 'database.g.dart';
   Budgets,
   Products,
   StockMovements,
+  StockReceipts,
+  StockReceiptItems,
   Contracts,
   PayrollRecords,
 ])
@@ -43,7 +47,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -101,6 +105,10 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 13) {
         await m.addColumn(transactions, transactions.exchangeRate);
+      }
+      if (from < 14) {
+        await m.createTable(stockReceipts);
+        await m.createTable(stockReceiptItems);
       }
     },
   );
@@ -638,6 +646,85 @@ class AppDatabase extends _$AppDatabase {
       [delta, entry.productId.value],
     );
     return id;
+  }
+
+  // ─── Stock Receipts ───────────────────────────────────────────────────────
+
+  Stream<List<StockReceipt>> watchReceiptsByCompany(int companyId) =>
+      (select(stockReceipts)
+            ..where((r) => r.companyId.equals(companyId))
+            ..orderBy([(r) => OrderingTerm.desc(r.createdAt)]))
+          .watch();
+
+  Future<StockReceipt?> getReceiptById(int id) =>
+      (select(stockReceipts)..where((r) => r.id.equals(id))).getSingleOrNull();
+
+  Future<int> insertReceipt(StockReceiptsCompanion entry) =>
+      into(stockReceipts).insert(entry);
+
+  Future<bool> updateReceipt(StockReceiptsCompanion entry) =>
+      update(stockReceipts).replace(entry);
+
+  Future<void> deleteReceipt(int id) async {
+    await (delete(stockReceiptItems)..where((i) => i.receiptId.equals(id))).go();
+    await (delete(stockReceipts)..where((r) => r.id.equals(id))).go();
+  }
+
+  Future<List<StockReceiptItem>> getItemsByReceipt(int receiptId) =>
+      (select(stockReceiptItems)
+            ..where((i) => i.receiptId.equals(receiptId)))
+          .get();
+
+  Future<void> replaceReceiptItems(
+      int receiptId, List<StockReceiptItemsCompanion> items) async {
+    await (delete(stockReceiptItems)
+          ..where((i) => i.receiptId.equals(receiptId)))
+        .go();
+    for (final item in items) {
+      await into(stockReceiptItems).insert(item);
+    }
+    final total = items.fold<double>(
+        0.0, (s, it) => s + it.qty.value * it.unitPrice.value);
+    await (update(stockReceipts)..where((r) => r.id.equals(receiptId)))
+        .write(StockReceiptsCompanion(totalAmount: Value(total)));
+  }
+
+  /// Проводит накладную: создаёт новые товары (если нужно) и StockMovement'ы.
+  Future<void> postReceipt(int receiptId) async {
+    final receipt = await getReceiptById(receiptId);
+    if (receipt == null || receipt.status == 'posted') return;
+
+    final items = await getItemsByReceipt(receiptId);
+    for (final item in items) {
+      var productId = item.productId;
+
+      if (productId == null) {
+        // Создаём новый товар прямо при проведении
+        productId = await insertProduct(ProductsCompanion.insert(
+          companyId: receipt.companyId,
+          name: item.productName,
+          unit: Value(item.unit),
+          purchasePrice: Value(item.unitPrice),
+          salePrice: Value(item.salePrice),
+        ));
+        // Связываем строку накладной с созданным товаром
+        await (update(stockReceiptItems)..where((i) => i.id.equals(item.id)))
+            .write(StockReceiptItemsCompanion(productId: Value(productId)));
+      }
+
+      await insertStockMovement(StockMovementsCompanion.insert(
+        companyId: receipt.companyId,
+        productId: productId,
+        type: const Value('in'),
+        quantity: item.qty,
+        price: Value(item.unitPrice),
+        date: receipt.date,
+        note: Value('Накладная ${receipt.number}'),
+      ));
+    }
+
+    await (update(stockReceipts)..where((r) => r.id.equals(receiptId)))
+        .write(StockReceiptsCompanion(status: const Value('posted')));
   }
 
   // ─── Contracts ────────────────────────────────────────────────────────────
