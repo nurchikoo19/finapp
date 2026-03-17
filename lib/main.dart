@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:local_notifier/local_notifier.dart';
 import 'app.dart';
 import 'providers/theme_provider.dart';
 import 'providers/database_provider.dart';
@@ -9,6 +10,7 @@ import 'theme/tabys_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await localNotifier.setup(appName: 'Tabys');
   runApp(
     const ProviderScope(
       child: MyApp(),

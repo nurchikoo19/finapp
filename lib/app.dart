@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:google_fonts/google_fonts.dart';
 import 'db/database.dart';
 import 'providers/database_provider.dart';
+import 'services/task_notification_service.dart';
 import 'providers/theme_provider.dart';
 import 'theme/tabys_theme.dart';
 import 'screens/dashboard/dashboard_screen.dart';
@@ -18,6 +19,7 @@ import 'screens/invoices/invoices_screen.dart';
 import 'screens/inventory/inventory_screen.dart';
 import 'screens/contracts/contracts_screen.dart';
 import 'screens/payroll/payroll_screen.dart';
+import 'screens/pomodoro/pomodoro_screen.dart';
 
 // ─── Screen registry ──────────────────────────────────────────────────────────
 
@@ -33,6 +35,7 @@ const _screens = [
   InventoryScreen(),
   ContractsScreen(),
   PayrollScreen(),
+  PomodoroScreen(),
 ];
 
 // ─── Nav item model ───────────────────────────────────────────────────────────
@@ -52,6 +55,7 @@ const _navItems = [
   _NavItem(3,  Icons.bar_chart_outlined,       'Отчёты'),
   _NavItem(4,  Icons.handshake_outlined,       'Сделки',    section: 'Бизнес'),
   _NavItem(5,  Icons.task_alt_outlined,        'Задачи'),
+  _NavItem(11, Icons.timer_outlined,           'Помодоро'),
   _NavItem(10, Icons.payments_outlined,        'Зарплата'),
   _NavItem(9,  Icons.description_outlined,     'Договоры'),
   _NavItem(8,  Icons.inventory_2_outlined,     'Склад',     section: 'Операции'),
@@ -71,6 +75,7 @@ const _titles = [
   'Склад',
   'Договоры',
   'Зарплата',
+  'Помодоро',
 ];
 
 // ─── Root widget ──────────────────────────────────────────────────────────────
@@ -88,8 +93,13 @@ class _TabysAppState extends ConsumerState<TabysApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(databaseProvider).processRecurringTransactions();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final db = ref.read(databaseProvider);
+      db.processRecurringTransactions();
+      final company = ref.read(selectedCompanyProvider);
+      if (company != null) {
+        await TaskNotificationService.checkAndNotify(db, company.id);
+      }
     });
   }
 

@@ -8,6 +8,13 @@ import '../../widgets/status_badge.dart';
 import '../../widgets/priority_badge.dart';
 import '../../widgets/employee_avatar.dart';
 
+String _fmtDue(DateTime dt) {
+  final hasTime = dt.hour != 0 || dt.minute != 0;
+  return hasTime
+      ? DateFormat('dd.MM.yyyy HH:mm').format(dt)
+      : DateFormat('dd.MM.yyyy').format(dt);
+}
+
 class TasksScreen extends ConsumerStatefulWidget {
   const TasksScreen({super.key});
 
@@ -252,7 +259,7 @@ class _TaskCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      DateFormat('dd.MM.yyyy').format(task.dueDate!),
+                      _fmtDue(task.dueDate!),
                       style: TextStyle(
                         fontSize: 12,
                         color: _isOverdue ? Colors.red : Colors.grey[600],
@@ -312,7 +319,7 @@ class _TaskDetailDialog extends ConsumerWidget {
           ]),
           if (task.dueDate != null) ...[
             const SizedBox(height: 8),
-            Text('Срок: ${DateFormat('dd.MM.yyyy').format(task.dueDate!)}'),
+            Text('Срок: ${_fmtDue(task.dueDate!)}'),
           ],
           if (employee != null) ...[
             const SizedBox(height: 8),
@@ -501,7 +508,7 @@ class _TaskDialogState extends ConsumerState<_TaskDialog> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   _dueDate != null
-                      ? 'Срок: ${DateFormat('dd.MM.yyyy').format(_dueDate!)}'
+                      ? 'Срок: ${_fmtDue(_dueDate!)}'
                       : 'Срок не задан',
                 ),
                 trailing: Row(
@@ -548,7 +555,18 @@ class _TaskDialogState extends ConsumerState<_TaskDialog> {
       lastDate: DateTime(2035),
       locale: const Locale('ru'),
     );
-    if (d != null) setState(() => _dueDate = d);
+    if (d == null) return;
+    if (!mounted) return;
+    final t = await showTimePicker(
+      context: context,
+      initialTime: _dueDate != null
+          ? TimeOfDay.fromDateTime(_dueDate!)
+          : TimeOfDay.now(),
+    );
+    setState(() {
+      _dueDate = DateTime(d.year, d.month, d.day,
+          t?.hour ?? 0, t?.minute ?? 0);
+    });
   }
 
   void _save() {
