@@ -1,4 +1,4 @@
-package com.finapp.finapp
+package com.tabys.tabys
 
 import io.flutter.embedding.android.FlutterActivity
 

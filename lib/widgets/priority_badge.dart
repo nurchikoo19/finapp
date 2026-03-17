@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/tabys_theme.dart';
 
 class PriorityBadge extends StatelessWidget {
   final String priority;
@@ -12,20 +13,27 @@ class PriorityBadge extends StatelessWidget {
   };
 
   static const _colors = {
-    'low': Colors.green,
-    'medium': Colors.orange,
-    'high': Colors.red,
+    'low': TColors.muted,
+    'medium': TColors.gold,
+    'high': TColors.red,
+  };
+
+  static const _bgs = {
+    'low': TColors.card2,
+    'medium': TColors.goldBg,
+    'high': TColors.redBg,
   };
 
   @override
   Widget build(BuildContext context) {
     final label = _labels[priority] ?? priority;
-    final color = _colors[priority] ?? Colors.grey;
+    final color = _colors[priority] ?? TColors.muted;
+    final bg = _bgs[priority] ?? TColors.card2;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
+        color: bg,
+        borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         label,

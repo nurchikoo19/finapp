@@ -6,6 +6,8 @@ import '../../db/database.dart';
 import '../../providers/database_provider.dart';
 import '../../services/csv_export.dart';
 import '../../services/pdf_report.dart';
+import '../../theme/tabys_theme.dart';
+import '../../widgets/employee_avatar.dart';
 
 String _sym(String code) {
   const m = {
@@ -35,7 +37,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 7, vsync: this);
+    _tabCtrl = TabController(length: 8, vsync: this);
   }
 
   @override
@@ -93,6 +95,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
             Tab(text: 'Бюджет'),
             Tab(text: 'Налоги'),
             Tab(text: 'Дебиторка'),
+            Tab(text: 'Зарплата'),
           ],
         ),
         Expanded(
@@ -108,6 +111,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen>
                     _BudgetTab(companyId: company.id, from: _from, to: _to, currency: company.currency),
                     _TaxTab(companyId: company.id, from: _from, to: _to, currency: company.currency),
                     _ArAgingTab(companyId: company.id, currency: company.currency),
+                    _PayrollTab(companyId: company.id, from: _from, to: _to, currency: company.currency),
                   ],
                 ),
         ),
@@ -184,6 +188,7 @@ class _PnLTab extends ConsumerWidget {
     return FutureBuilder<Map<String, double>>(
       future: db.getPnLByCategory(companyId, from, to),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -303,6 +308,7 @@ class _EbitdaTab extends ConsumerWidget {
     return FutureBuilder<double>(
       future: db.getEBITDA(companyId, from, to),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -310,6 +316,7 @@ class _EbitdaTab extends ConsumerWidget {
         return FutureBuilder<Map<String, double>>(
           future: db.getPnLByCategory(companyId, from, to),
           builder: (context, pnlSnap) {
+            if (pnlSnap.hasError) return Center(child: Text('Ошибка: ${pnlSnap.error}', style: const TextStyle(color: Colors.red)));
             if (!pnlSnap.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -331,7 +338,7 @@ class _EbitdaTab extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Card(
-                    color: Colors.blue.shade50,
+                    color: TColors.blueBg,
                     child: const Padding(
                       padding: EdgeInsets.all(12),
                       child: Column(
@@ -387,6 +394,7 @@ class _BreakevenTab extends ConsumerWidget {
         db.getPnLByCategory(companyId, from, to),
       ]),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -465,8 +473,8 @@ class _BreakevenTab extends ConsumerWidget {
               const SizedBox(height: 16),
               Card(
                 color: breakeven <= totalRevenue
-                    ? Colors.green.shade50
-                    : Colors.red.shade50,
+                    ? TColors.greenBg
+                    : TColors.redBg,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -682,6 +690,7 @@ class _BudgetTabState extends ConsumerState<_BudgetTab> {
         db.getPnLByCategory(widget.companyId, widget.from, widget.to),
       ]),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -871,6 +880,7 @@ class _CashFlowTab extends ConsumerWidget {
         db.getTotalBalance(companyId),
       ]),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -1126,6 +1136,8 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
   late List<_UsnEntry> _usnEntries;
   // НсП: включить расчёт налога с продаж (ст. 392 НК КР)
   bool _nspEnabled = false;
+  // НсП: наличная выручка вводится отдельно (ст. 392 — только наличные расчёты)
+  final _nspCashCtrl = TextEditingController();
 
   @override
   void initState() {
@@ -1145,6 +1157,7 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
   void dispose() {
     _patentCtrl.dispose();
     _fotCtrl.dispose();
+    _nspCashCtrl.dispose();
     for (final e in _usnEntries) {
       e.dispose();
     }
@@ -1161,6 +1174,7 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
       future: db.getTransactionsByCompany(widget.companyId,
           from: widget.from, to: widget.to),
       builder: (context, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -1186,8 +1200,11 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
         final ndfl = (fot - orsEmployee) * 0.10;
 
         // ─── Налог с продаж (ст. 392 НК КР) ─────────────────────────────
-        // 2% от выручки при расчётах наличными. Не применяется к безналичным.
-        final nsp = revenue * 0.02;
+        // 2% только от наличной выручки. Пользователь вводит сумму вручную.
+        final nspCash = double.tryParse(
+                _nspCashCtrl.text.replaceAll(' ', '').replaceAll(',', '.')) ??
+            0.0;
+        final nsp = nspCash * 0.02;
 
         // ─── УСН итог по всем строкам ─────────────────────────────────────
         final usnTotal = _usnEntries.fold(0.0, (s, e) => s + e.tax);
@@ -1279,11 +1296,23 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
                   ],
                 ),
                 if (_nspEnabled) ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nspCashCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Наличная выручка (для НсП)',
+                      helperText: 'НсП 2% начисляется только на наличные расчёты (ст. 392 НК КР)',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
                   const SizedBox(height: 4),
                   _TaxRow(
                     icon: Icons.point_of_sale,
                     title: 'Налог с продаж (НсП)',
-                    subtitle: '2% от выручки (только наличные расчёты)',
+                    subtitle: '2% от наличной выручки (ст. 392 НК КР)',
                     amount: nsp,
                     fmt: fmt,
                     color: Colors.brown,
@@ -1615,7 +1644,17 @@ class _TaxTabState extends ConsumerState<_TaxTab> {
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.picture_as_pdf),
                   label: const Text('Справка об изменениях (PDF)'),
-                  onPressed: () => PdfReportService.printTaxChangelog(),
+                  onPressed: () async {
+                    try {
+                      await PdfReportService.printTaxChangelog();
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Ошибка PDF: $e')),
+                        );
+                      }
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -1785,6 +1824,7 @@ class _ArAgingTab extends ConsumerWidget {
     return FutureBuilder<List<Invoice>>(
       future: db.watchInvoicesByCompany(companyId).first,
       builder: (ctx, snap) {
+        if (snap.hasError) return Center(child: Text('Ошибка: ${snap.error}', style: const TextStyle(color: Colors.red)));
         if (!snap.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
@@ -1955,6 +1995,221 @@ class _ArAgingTab extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+// ─── Payroll Tab ──────────────────────────────────────────────────────────────
+
+class _EmpAgg {
+  double base = 0;
+  double bonuses = 0;
+  double deductions = 0;
+  double net = 0;
+}
+
+class _PayrollTab extends ConsumerStatefulWidget {
+  final int companyId;
+  final DateTime from;
+  final DateTime to;
+  final String currency;
+
+  const _PayrollTab({
+    required this.companyId,
+    required this.from,
+    required this.to,
+    required this.currency,
+  });
+
+  @override
+  ConsumerState<_PayrollTab> createState() => _PayrollTabState();
+}
+
+class _PayrollTabState extends ConsumerState<_PayrollTab> {
+  late Future<List<dynamic>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  @override
+  void didUpdateWidget(_PayrollTab old) {
+    super.didUpdateWidget(old);
+    if (old.companyId != widget.companyId ||
+        old.from != widget.from ||
+        old.to != widget.to) {
+      setState(() => _future = _load());
+    }
+  }
+
+  Future<List<dynamic>> _load() {
+    final db = ref.read(databaseProvider);
+    return Future.wait([
+      db.getPayrollByRange(widget.companyId, widget.from, widget.to),
+      db.getEmployeesByCompany(widget.companyId),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat.currency(
+        locale: 'ru_RU', symbol: _sym(widget.currency), decimalDigits: 0);
+
+    return FutureBuilder<List<dynamic>>(
+      future: _future,
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Center(child: Text('Ошибка: ${snap.error}'));
+        }
+        if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+
+        final records = snap.data![0] as List<PayrollRecord>;
+        final employees = snap.data![1] as List<Employee>;
+        final empMap = {for (final e in employees) e.id: e};
+
+        if (records.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.people_outline, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text('Нет начислений за период',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Добавьте записи в разделе «Зарплата»',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Single aggregation pass — totals + per-employee breakdown
+        double totalBase = 0, totalBonuses = 0, totalDeductions = 0, totalNet = 0;
+        final byEmployee = <int, _EmpAgg>{};
+        for (final r in records) {
+          final agg = byEmployee.putIfAbsent(r.employeeId, _EmpAgg.new);
+          agg.base += r.baseSalary;
+          agg.bonuses += r.bonuses;
+          agg.deductions += r.deductions;
+          agg.net += r.netAmount;
+          totalBase += r.baseSalary;
+          totalBonuses += r.bonuses;
+          totalDeductions += r.deductions;
+          totalNet += r.netAmount;
+        }
+
+        final sortedEmp = byEmployee.entries.toList()
+          ..sort((a, b) => b.value.net.compareTo(a.value.net));
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Row(children: [
+              Expanded(child: _ReportCard(
+                label: 'Оклад (база)', value: fmt.format(totalBase), color: Colors.blue,
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: _ReportCard(
+                label: 'Премии', value: fmt.format(totalBonuses), color: Colors.green,
+              )),
+            ]),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: _ReportCard(
+                label: 'Удержания', value: fmt.format(totalDeductions), color: Colors.red,
+              )),
+              const SizedBox(width: 8),
+              Expanded(child: _ReportCard(
+                label: 'К выплате',
+                value: fmt.format(totalNet),
+                color: Colors.teal,
+                subtitle: '${records.length} записей',
+              )),
+            ]),
+            const SizedBox(height: 20),
+
+            Text('По сотрудникам',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+
+            ...sortedEmp.map((entry) {
+              final emp = empMap[entry.key];
+              final name = emp?.name ?? 'Сотрудник #${entry.key}';
+              final agg = entry.value;
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      EmployeeAvatar(
+                        name: name,
+                        colorValue: emp?.color ?? 0xFF607D8B,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(name,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            if (emp?.role != null && emp!.role!.isNotEmpty)
+                              Text(emp.role!,
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                            const SizedBox(height: 4),
+                            Wrap(
+                              spacing: 8,
+                              children: [
+                                _PayrollChip('База: ${fmt.format(agg.base)}', Colors.blue),
+                                if (agg.bonuses > 0)
+                                  _PayrollChip('+${fmt.format(agg.bonuses)}', Colors.green),
+                                if (agg.deductions > 0)
+                                  _PayrollChip('-${fmt.format(agg.deductions)}', Colors.red),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        fmt.format(agg.net),
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.bold, color: Colors.teal),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _PayrollChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _PayrollChip(this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label,
+          style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
     );
   }
 }

@@ -117,6 +117,26 @@ final filteredTasksProvider = Provider<List<Task>>((ref) {
   return filtered;
 });
 
+// ─── Invoices Provider ────────────────────────────────────────────────────
+
+final invoicesProvider = StreamProvider<List<Invoice>>((ref) {
+  final company = ref.watch(selectedCompanyProvider);
+  if (company == null) return const Stream.empty();
+  return ref.watch(databaseProvider).watchInvoicesByCompany(company.id);
+});
+
+// Last 6 months of transactions for P&L chart
+final last6MonthsTransactionsProvider = StreamProvider<List<Transaction>>((ref) {
+  final company = ref.watch(selectedCompanyProvider);
+  if (company == null) return const Stream.empty();
+  final now = DateTime.now();
+  final from = DateTime(now.year, now.month - 5, 1);
+  final to = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+  return ref
+      .watch(databaseProvider)
+      .watchTransactionsByCompany(company.id, from: from, to: to);
+});
+
 // ─── Products Provider ────────────────────────────────────────────────────
 
 final productsProvider = StreamProvider<List<Product>>((ref) {

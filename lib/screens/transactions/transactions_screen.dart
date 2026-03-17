@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import '../../providers/database_provider.dart';
 import '../../db/database.dart';
 import '../../services/csv_export.dart';
+import '../../theme/tabys_theme.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
   const TransactionsScreen({super.key});
@@ -416,6 +417,7 @@ class _TransactionDialog extends ConsumerStatefulWidget {
 class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
   late final TextEditingController _amountCtrl;
   late final TextEditingController _descCtrl;
+  late final TextEditingController _exchangeRateCtrl;
   late String _type;
   late int? _accountId;
   late int? _toAccountId;
@@ -433,6 +435,9 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
       text: tx != null ? tx.amount.toStringAsFixed(2) : '',
     );
     _descCtrl = TextEditingController(text: tx?.description ?? '');
+    _exchangeRateCtrl = TextEditingController(
+      text: tx?.exchangeRate != null ? tx!.exchangeRate!.toStringAsFixed(4) : '',
+    );
     _type = tx?.type ?? 'expense';
     _accountId = tx?.accountId;
     _toAccountId = tx?.toAccountId;
@@ -447,6 +452,7 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
   void dispose() {
     _amountCtrl.dispose();
     _descCtrl.dispose();
+    _exchangeRateCtrl.dispose();
     super.dispose();
   }
 
@@ -490,7 +496,7 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
                     items: accounts
                         .map((a) => DropdownMenuItem(
                               value: a.id,
-                              child: Text(a.name),
+                              child: Text('${a.name} (${a.currency})'),
                             ))
                         .toList(),
                     onChanged: (v) => setState(() => _accountId = v),
@@ -504,11 +510,46 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
                           .where((a) => a.id != _accountId)
                           .map((a) => DropdownMenuItem(
                                 value: a.id,
-                                child: Text(a.name),
+                                child: Text('${a.name} (${a.currency})'),
                               ))
                           .toList(),
                       onChanged: (v) => setState(() => _toAccountId = v),
                     ),
+                    () {
+                      final fromAcc = accounts.where((a) => a.id == _accountId).firstOrNull;
+                      final toAcc = accounts.where((a) => a.id == _toAccountId).firstOrNull;
+                      if (fromAcc == null || toAcc == null) return const SizedBox();
+                      if (fromAcc.currency == toAcc.currency) return const SizedBox();
+                      final amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.')) ?? 0;
+                      final rate = double.tryParse(_exchangeRateCtrl.text.replaceAll(',', '.')) ?? 0;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _exchangeRateCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Курс конвертации',
+                              helperText: '1 ${fromAcc.currency} = ? ${toAcc.currency}',
+                              prefixIcon: const Icon(Icons.currency_exchange, size: 18),
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                          if (amount > 0 && rate > 0) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '→ ${(amount * rate).toStringAsFixed(2)} ${toAcc.currency}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: TColors.green,
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    }(),
                   ],
                   if (_type != 'transfer') ...[
                     const SizedBox(height: 8),
@@ -644,6 +685,17 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
     final desc = Value(_descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim());
     final db = ref.read(databaseProvider);
 
+    final accounts = ref.read(accountsProvider).valueOrNull ?? [];
+    final fromAcc = accounts.where((a) => a.id == _accountId).firstOrNull;
+    final toAcc = accounts.where((a) => a.id == _toAccountId).firstOrNull;
+    final isCrossCurrency = _type == 'transfer' &&
+        fromAcc != null &&
+        toAcc != null &&
+        fromAcc.currency != toAcc.currency;
+    final exchangeRate = isCrossCurrency
+        ? double.tryParse(_exchangeRateCtrl.text.replaceAll(',', '.'))
+        : null;
+
     if (widget.existing != null) {
       db.updateTransaction(
         widget.existing!.id,
@@ -655,6 +707,7 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
           date: Value(_date),
           categoryId: Value(_categoryId),
           toAccountId: Value(_toAccountId),
+          exchangeRate: Value(exchangeRate),
           description: desc,
           isFixed: Value(_isFixed),
           isRecurring: Value(_isRecurring),
@@ -671,6 +724,7 @@ class _TransactionDialogState extends ConsumerState<_TransactionDialog> {
           date: _date,
           categoryId: Value(_categoryId),
           toAccountId: Value(_toAccountId),
+          exchangeRate: Value(exchangeRate),
           description: desc,
           isFixed: Value(_isFixed),
           isRecurring: Value(_isRecurring),

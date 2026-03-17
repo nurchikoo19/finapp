@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show Value;
+import 'package:google_fonts/google_fonts.dart';
 import 'db/database.dart';
 import 'providers/database_provider.dart';
 import 'providers/theme_provider.dart';
+import 'theme/tabys_theme.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/accounts/accounts_screen.dart';
 import 'screens/transactions/transactions_screen.dart';
@@ -16,6 +18,62 @@ import 'screens/invoices/invoices_screen.dart';
 import 'screens/inventory/inventory_screen.dart';
 import 'screens/contracts/contracts_screen.dart';
 import 'screens/payroll/payroll_screen.dart';
+
+// ─── Screen registry ──────────────────────────────────────────────────────────
+
+const _screens = [
+  DashboardScreen(),
+  AccountsScreen(),
+  TransactionsScreen(),
+  ReportsScreen(),
+  InvoicesScreen(),
+  TasksScreen(),
+  EmployeesScreen(),
+  CategoriesScreen(),
+  InventoryScreen(),
+  ContractsScreen(),
+  PayrollScreen(),
+];
+
+// ─── Nav item model ───────────────────────────────────────────────────────────
+
+class _NavItem {
+  final int index;
+  final IconData icon;
+  final String label;
+  final String? section;
+  const _NavItem(this.index, this.icon, this.label, {this.section});
+}
+
+const _navItems = [
+  _NavItem(0,  Icons.dashboard_outlined,       'Главная',   section: 'Обзор'),
+  _NavItem(1,  Icons.account_balance_wallet_outlined, 'Счета'),
+  _NavItem(2,  Icons.receipt_long_outlined,    'Транзакции'),
+  _NavItem(3,  Icons.bar_chart_outlined,       'Отчёты'),
+  _NavItem(4,  Icons.handshake_outlined,       'Сделки',    section: 'Бизнес'),
+  _NavItem(5,  Icons.task_alt_outlined,        'Задачи'),
+  _NavItem(10, Icons.payments_outlined,        'Зарплата'),
+  _NavItem(9,  Icons.description_outlined,     'Договоры'),
+  _NavItem(8,  Icons.inventory_2_outlined,     'Склад',     section: 'Операции'),
+  _NavItem(6,  Icons.people_outline,           'Сотрудники'),
+  _NavItem(7,  Icons.category_outlined,        'Категории'),
+];
+
+const _titles = [
+  'Дашборд',
+  'Счета',
+  'Транзакции',
+  'Отчёты',
+  'Сделки и дебиторка',
+  'Задачи',
+  'Сотрудники',
+  'Категории',
+  'Склад',
+  'Договоры',
+  'Зарплата',
+];
+
+// ─── Root widget ──────────────────────────────────────────────────────────────
 
 class TabysApp extends ConsumerStatefulWidget {
   const TabysApp({super.key});
@@ -35,324 +93,577 @@ class _TabysAppState extends ConsumerState<TabysApp> {
     });
   }
 
-  static const _screens = [
-    DashboardScreen(),
-    AccountsScreen(),
-    TransactionsScreen(),
-    ReportsScreen(),
-    InvoicesScreen(),
-    TasksScreen(),
-    EmployeesScreen(),
-    CategoriesScreen(),
-    InventoryScreen(),
-    ContractsScreen(),
-    PayrollScreen(),
-  ];
-
-  static const _navItems = [
-    NavigationDestination(icon: Icon(Icons.dashboard), label: 'Главная'),
-    NavigationDestination(icon: Icon(Icons.account_balance_wallet), label: 'Счета'),
-    NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Транзакции'),
-    NavigationDestination(icon: Icon(Icons.bar_chart), label: 'Отчёты'),
-    NavigationDestination(icon: Icon(Icons.handshake), label: 'Сделки'),
-    NavigationDestination(icon: Icon(Icons.task_alt), label: 'Задачи'),
-    NavigationDestination(icon: Icon(Icons.people), label: 'Сотрудники'),
-    NavigationDestination(icon: Icon(Icons.category), label: 'Категории'),
-    NavigationDestination(icon: Icon(Icons.inventory_2), label: 'Склад'),
-    NavigationDestination(icon: Icon(Icons.description), label: 'Договоры'),
-    NavigationDestination(icon: Icon(Icons.payments), label: 'Зарплата'),
-  ];
-
-  static const _titles = [
-    'Главная',
-    'Счета',
-    'Транзакции',
-    'Отчёты',
-    'Сделки и дебиторка',
-    'Задачи',
-    'Сотрудники',
-    'Категории',
-    'Склад',
-    'Договоры',
-    'Зарплата',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final selectedCompany = ref.watch(selectedCompanyProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu),
-            tooltip: 'Меню',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
+      backgroundColor: TColors.ink,
+      body: Row(
+        children: [
+          _TabysSidebar(
+            selectedIndex: _selectedIndex,
+            onSelect: (i) => setState(() => _selectedIndex = i),
+            onAddCompany: () => _showCompanyDialog(context),
           ),
-        ),
-        // Flexible prevents the dropdown from overflowing the AppBar Row
-        title: Text(
-          _titles[_selectedIndex],
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          if (selectedCompany != null)
-            IconButton(
-              icon: const Icon(Icons.settings),
-              tooltip: 'Настройки компании',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => CompanySettingsScreen(
-                    company: selectedCompany,
-                  ),
+          Expanded(
+            child: Column(
+              children: [
+                _TabysTopbar(
+                  title: _titles[_selectedIndex],
+                  company: selectedCompany,
+                  onSettings: selectedCompany == null
+                      ? null
+                      : () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CompanySettingsScreen(
+                                company: selectedCompany,
+                              ),
+                            ),
+                          ),
                 ),
-              ),
+                Expanded(child: _screens[_selectedIndex]),
+              ],
             ),
-          Consumer(
-            builder: (ctx, r, _) {
-              final isDark = r.watch(themeModeProvider) == ThemeMode.dark;
-              return IconButton(
-                icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
-                tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
-                onPressed: () => r.read(themeModeProvider.notifier).toggle(),
-              );
-            },
           ),
         ],
       ),
-      drawer: Drawer(
-        child: _AppDrawer(
-          selectedIndex: _selectedIndex,
-          onSelected: (i) {
-            setState(() => _selectedIndex = i);
-            Navigator.pop(context);
-          },
-          navItems: _navItems,
-          onAddCompany: () {
-            Navigator.pop(context);
-            _showCompanyDialog(context);
-          },
-        ),
-      ),
-      body: _screens[_selectedIndex],
     );
   }
 
   void _showCompanyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => const _CompanyDialog(),
-    );
+    showDialog(context: context, builder: (_) => const _CompanyDialog());
   }
 }
 
-// ─── App Drawer ───────────────────────────────────────────────────────────────
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
 
-class _AppDrawer extends ConsumerStatefulWidget {
+class _TabysSidebar extends ConsumerStatefulWidget {
   final int selectedIndex;
-  final ValueChanged<int> onSelected;
-  final List<NavigationDestination> navItems;
+  final ValueChanged<int> onSelect;
   final VoidCallback onAddCompany;
 
-  const _AppDrawer({
+  const _TabysSidebar({
     required this.selectedIndex,
-    required this.onSelected,
-    required this.navItems,
+    required this.onSelect,
     required this.onAddCompany,
   });
 
   @override
-  ConsumerState<_AppDrawer> createState() => _AppDrawerState();
+  ConsumerState<_TabysSidebar> createState() => _TabysSidebarState();
 }
 
-class _AppDrawerState extends ConsumerState<_AppDrawer> {
+class _TabysSidebarState extends ConsumerState<_TabysSidebar> {
   bool _companiesExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     final companiesAsync = ref.watch(companiesProvider);
-    final selectedCompany = ref.watch(selectedCompanyProvider);
-    final colorScheme = Theme.of(context).colorScheme;
+    final selected = ref.watch(selectedCompanyProvider);
 
-    return Column(
-      children: [
-        // ── Company switcher header ──────────────────────────────────────────
-        SafeArea(
-          bottom: false,
-          child: InkWell(
-            onTap: () => setState(() => _companiesExpanded = !_companiesExpanded),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 16, 12, 12),
-              color: colorScheme.primaryContainer.withValues(alpha: 0.4),
+    return SizedBox(
+      width: 220,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: TColors.surface,
+          border: Border(right: BorderSide(color: TColors.border)),
+        ),
+        child: Column(
+          children: [
+            // ── Logo ────────────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: TColors.border)),
+              ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: colorScheme.primary,
-                    radius: 20,
-                    child: Text(
-                      selectedCompany?.name.isNotEmpty == true
-                          ? selectedCompany!.name[0].toUpperCase()
-                          : '?',
-                      style: TextStyle(
-                        color: colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                  ClipPath(
+                    clipper: _TriangleClipper(),
+                    child: Container(
+                      width: 26, height: 26,
+                      color: TColors.gold,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selectedCompany?.name ?? 'Нет компании',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const Text(
-                          'Нажмите для смены',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
-                        ),
+                  const SizedBox(width: 10),
+                  RichText(
+                    text: TextSpan(
+                      style: GoogleFonts.syne(
+                          fontSize: 19,
+                          fontWeight: FontWeight.w800,
+                          color: TColors.text),
+                      children: const [
+                        TextSpan(text: 'T'),
+                        TextSpan(
+                            text: 'A',
+                            style: TextStyle(color: TColors.gold)),
+                        TextSpan(text: 'BYS'),
                       ],
                     ),
                   ),
-                  Icon(
-                    _companiesExpanded
-                        ? Icons.expand_less
-                        : Icons.expand_more,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
                 ],
               ),
             ),
-          ),
-        ),
 
-        // ── Company list (expanded) ──────────────────────────────────────────
-        if (_companiesExpanded)
-          Container(
-            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            child: companiesAsync.when(
-              data: (companies) => Column(
-                children: [
-                  ...companies.map((c) {
-                    final isSelected = c.id == selectedCompany?.id;
-                    return ListTile(
-                      dense: true,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 20),
-                      leading: CircleAvatar(
-                        radius: 14,
-                        backgroundColor: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.surfaceContainerHighest,
-                        child: Text(
-                          c.name.isNotEmpty ? c.name[0].toUpperCase() : '?',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurfaceVariant,
+            // ── Company box ─────────────────────────────────────────────────
+            GestureDetector(
+              onTap: () =>
+                  setState(() => _companiesExpanded = !_companiesExpanded),
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: TColors.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: _companiesExpanded ? TColors.border2 : TColors.border,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('КОМПАНИЯ',
+                        style: GoogleFonts.inter(
+                            fontSize: 9,
+                            color: TColors.muted,
+                            letterSpacing: .6,
+                            fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            selected?.name ?? 'Нет компании',
+                            style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: TColors.text),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          _companiesExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 16,
+                          color: TColors.muted,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Company list ────────────────────────────────────────────────
+            if (_companiesExpanded)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: TColors.card2,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: TColors.border),
+                ),
+                child: Column(
+                  children: [
+                    ...companiesAsync.valueOrNull?.map((c) {
+                          final isSel = c.id == selected?.id;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: () {
+                              ref
+                                  .read(selectedCompanyIdProvider.notifier)
+                                  .state = c.id;
+                              setState(() => _companiesExpanded = false);
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: isSel
+                                          ? TColors.gold
+                                          : TColors.border2,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      c.name.isNotEmpty
+                                          ? c.name[0].toUpperCase()
+                                          : '?',
+                                      style: GoogleFonts.syne(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700,
+                                          color: isSel
+                                              ? TColors.ink
+                                              : TColors.text),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(c.name,
+                                        style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: isSel
+                                                ? FontWeight.w600
+                                                : FontWeight.normal,
+                                            color: isSel
+                                                ? TColors.gold
+                                                : TColors.text),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis),
+                                  ),
+                                  if (isSel)
+                                    const Icon(Icons.check,
+                                        size: 14, color: TColors.gold),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList() ??
+                        [],
+                    const Divider(height: 1),
+                    InkWell(
+                      borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(10)),
+                      onTap: () {
+                        setState(() => _companiesExpanded = false);
+                        widget.onAddCompany();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 9),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.add_business_outlined,
+                                size: 16, color: TColors.gold),
+                            const SizedBox(width: 8),
+                            Text('Добавить компанию',
+                                style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    color: TColors.gold,
+                                    fontWeight: FontWeight.w500)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 4),
+
+            // ── Navigation ──────────────────────────────────────────────────
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 8),
+                itemCount: _navItems.length,
+                itemBuilder: (ctx, i) {
+                  final item = _navItems[i];
+                  final isActive = widget.selectedIndex == item.index;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item.section != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
+                          child: Text(
+                            item.section!.toUpperCase(),
+                            style: GoogleFonts.inter(
+                                fontSize: 9,
+                                color: TColors.muted2,
+                                letterSpacing: .8,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 1),
+                        decoration: isActive
+                            ? BoxDecoration(
+                                color: TColors.goldBg,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                    color: const Color(0x26D4A843)),
+                              )
+                            : null,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          onTap: () => widget.onSelect(item.index),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                if (isActive)
+                                  Container(
+                                    width: 3,
+                                    height: 18,
+                                    margin: const EdgeInsets.only(right: 9),
+                                    decoration: BoxDecoration(
+                                      color: TColors.gold,
+                                      borderRadius: BorderRadius.circular(2),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(width: 12),
+                                Icon(item.icon,
+                                    size: 16,
+                                    color: isActive
+                                        ? TColors.gold
+                                        : TColors.muted),
+                                const SizedBox(width: 10),
+                                Text(
+                                  item.label,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: isActive
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                    color: isActive
+                                        ? TColors.gold
+                                        : TColors.muted,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                      title: Text(
-                        c.name,
-                        style: TextStyle(
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
-                          fontSize: 13,
-                        ),
-                      ),
-                      trailing: isSelected
-                          ? Icon(Icons.check, color: colorScheme.primary, size: 18)
-                          : null,
-                      onTap: () {
-                        ref.read(selectedCompanyIdProvider.notifier).state =
-                            c.id;
-                        setState(() => _companiesExpanded = false);
-                        Navigator.pop(context);
-                      },
-                    );
-                  }),
-                  ListTile(
-                    dense: true,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 20),
-                    leading: Icon(Icons.add_business,
-                        size: 20, color: colorScheme.primary),
-                    title: Text(
-                      'Добавить компанию',
-                      style: TextStyle(
-                          fontSize: 13, color: colorScheme.primary),
-                    ),
-                    onTap: () {
-                      setState(() => _companiesExpanded = false);
-                      widget.onAddCompany();
-                    },
-                  ),
-                  const Divider(height: 1),
-                ],
+                    ],
+                  );
+                },
               ),
-              loading: () => const Padding(
-                padding: EdgeInsets.all(12),
-                child: CircularProgressIndicator(),
-              ),
-              error: (_, __) => const SizedBox(),
             ),
-          ),
 
-        const Divider(height: 1),
-
-        // ── Navigation items ─────────────────────────────────────────────────
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.only(top: 8, bottom: 16),
-            itemCount: widget.navItems.length,
-            itemBuilder: (ctx, i) {
-              final item = widget.navItems[i];
-              final selected = widget.selectedIndex == i;
-              return ListTile(
-                selected: selected,
-                selectedTileColor: colorScheme.secondaryContainer,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-                leading: IconTheme(
-                  data: IconThemeData(
-                    color: selected
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurfaceVariant,
-                  ),
-                  child: item.icon,
+            // ── Profile row ─────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: TColors.border)),
+              ),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                title: Text(
-                  item.label,
-                  style: TextStyle(
-                    fontWeight:
-                        selected ? FontWeight.bold : FontWeight.normal,
-                    color: selected
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurfaceVariant,
-                  ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [TColors.gold, Color(0xFF8B5E1F)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        selected?.name.isNotEmpty == true
+                            ? selected!.name[0].toUpperCase()
+                            : 'T',
+                        style: GoogleFonts.syne(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: TColors.ink),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            selected?.name ?? 'Tabys',
+                            style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: TColors.text),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text('Администратор',
+                              style: GoogleFonts.inter(
+                                  fontSize: 10, color: TColors.muted)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                onTap: () => widget.onSelected(i),
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
+
+// ─── Topbar ───────────────────────────────────────────────────────────────────
+
+class _TabysTopbar extends ConsumerWidget {
+  final String title;
+  final Company? company;
+  final VoidCallback? onSettings;
+
+  const _TabysTopbar({
+    required this.title,
+    required this.company,
+    this.onSettings,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final now = DateTime.now();
+    final months = [
+      '', 'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+      'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+
+    return Container(
+      height: 56,
+      decoration: const BoxDecoration(
+        color: TColors.surface,
+        border: Border(bottom: BorderSide(color: TColors.border)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: [
+          // Title
+          Text(title,
+              style: GoogleFonts.syne(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: TColors.text)),
+          const SizedBox(width: 14),
+
+          // Period pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: TColors.card,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: TColors.border),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today_outlined,
+                    size: 12, color: TColors.muted),
+                const SizedBox(width: 6),
+                Text(
+                  '${months[now.month]} ${now.year}',
+                  style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: TColors.text),
+                ),
+              ],
+            ),
+          ),
+
+          const Spacer(),
+
+          // Theme toggle
+          _IconBtn(
+            icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            tooltip: isDark ? 'Светлая тема' : 'Тёмная тема',
+            onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+          ),
+          const SizedBox(width: 6),
+
+          // Settings
+          if (onSettings != null) ...[
+            _IconBtn(
+              icon: Icons.settings_outlined,
+              tooltip: 'Настройки компании',
+              onTap: onSettings!,
+            ),
+            const SizedBox(width: 6),
+          ],
+
+          // Add transaction button
+          FilledButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Транзакция'),
+            style: FilledButton.styleFrom(
+              backgroundColor: TColors.gold,
+              foregroundColor: TColors.ink,
+              textStyle: GoogleFonts.inter(
+                  fontSize: 13, fontWeight: FontWeight.w700),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _IconBtn(
+      {required this.icon, required this.tooltip, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: TColors.card,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: TColors.border),
+          ),
+          child: Icon(icon, size: 17, color: TColors.muted),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Triangle logo clipper ────────────────────────────────────────────────────
+
+class _TriangleClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) => Path()
+    ..moveTo(size.width / 2, 0)
+    ..lineTo(size.width, size.height)
+    ..lineTo(0, size.height)
+    ..close();
+
+  @override
+  bool shouldReclip(_TriangleClipper old) => false;
+}
+
+// ─── Company dialog ───────────────────────────────────────────────────────────
 
 class _CompanyDialog extends ConsumerStatefulWidget {
   const _CompanyDialog();
@@ -382,12 +693,14 @@ class _CompanyDialogState extends ConsumerState<_CompanyDialog> {
         children: [
           TextField(
             controller: _nameCtrl,
-            decoration: const InputDecoration(labelText: 'Название компании'),
+            decoration:
+                const InputDecoration(labelText: 'Название компании'),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _descCtrl,
-            decoration: const InputDecoration(labelText: 'Описание (необязательно)'),
+            decoration: const InputDecoration(
+                labelText: 'Описание (необязательно)'),
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(

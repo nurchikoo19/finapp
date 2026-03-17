@@ -1225,8 +1225,15 @@ class $CategoriesTable extends Categories
   late final GeneratedColumn<int> parentId = GeneratedColumn<int>(
       'parent_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _taxRateMeta =
+      const VerificationMeta('taxRate');
   @override
-  List<GeneratedColumn> get $columns => [id, companyId, name, type, parentId];
+  late final GeneratedColumn<double> taxRate = GeneratedColumn<double>(
+      'tax_rate', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, companyId, name, type, parentId, taxRate];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1260,6 +1267,10 @@ class $CategoriesTable extends Categories
       context.handle(_parentIdMeta,
           parentId.isAcceptableOrUnknown(data['parent_id']!, _parentIdMeta));
     }
+    if (data.containsKey('tax_rate')) {
+      context.handle(_taxRateMeta,
+          taxRate.isAcceptableOrUnknown(data['tax_rate']!, _taxRateMeta));
+    }
     return context;
   }
 
@@ -1279,6 +1290,8 @@ class $CategoriesTable extends Categories
           .read(DriftSqlType.string, data['${effectivePrefix}type'])!,
       parentId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}parent_id']),
+      taxRate: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}tax_rate']),
     );
   }
 
@@ -1294,12 +1307,14 @@ class Category extends DataClass implements Insertable<Category> {
   final String name;
   final String type;
   final int? parentId;
+  final double? taxRate;
   const Category(
       {required this.id,
       required this.companyId,
       required this.name,
       required this.type,
-      this.parentId});
+      this.parentId,
+      this.taxRate});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -1309,6 +1324,9 @@ class Category extends DataClass implements Insertable<Category> {
     map['type'] = Variable<String>(type);
     if (!nullToAbsent || parentId != null) {
       map['parent_id'] = Variable<int>(parentId);
+    }
+    if (!nullToAbsent || taxRate != null) {
+      map['tax_rate'] = Variable<double>(taxRate);
     }
     return map;
   }
@@ -1322,6 +1340,9 @@ class Category extends DataClass implements Insertable<Category> {
       parentId: parentId == null && nullToAbsent
           ? const Value.absent()
           : Value(parentId),
+      taxRate: taxRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(taxRate),
     );
   }
 
@@ -1334,6 +1355,7 @@ class Category extends DataClass implements Insertable<Category> {
       name: serializer.fromJson<String>(json['name']),
       type: serializer.fromJson<String>(json['type']),
       parentId: serializer.fromJson<int?>(json['parentId']),
+      taxRate: serializer.fromJson<double?>(json['taxRate']),
     );
   }
   @override
@@ -1345,6 +1367,7 @@ class Category extends DataClass implements Insertable<Category> {
       'name': serializer.toJson<String>(name),
       'type': serializer.toJson<String>(type),
       'parentId': serializer.toJson<int?>(parentId),
+      'taxRate': serializer.toJson<double?>(taxRate),
     };
   }
 
@@ -1353,13 +1376,15 @@ class Category extends DataClass implements Insertable<Category> {
           int? companyId,
           String? name,
           String? type,
-          Value<int?> parentId = const Value.absent()}) =>
+          Value<int?> parentId = const Value.absent(),
+          Value<double?> taxRate = const Value.absent()}) =>
       Category(
         id: id ?? this.id,
         companyId: companyId ?? this.companyId,
         name: name ?? this.name,
         type: type ?? this.type,
         parentId: parentId.present ? parentId.value : this.parentId,
+        taxRate: taxRate.present ? taxRate.value : this.taxRate,
       );
   Category copyWithCompanion(CategoriesCompanion data) {
     return Category(
@@ -1368,6 +1393,7 @@ class Category extends DataClass implements Insertable<Category> {
       name: data.name.present ? data.name.value : this.name,
       type: data.type.present ? data.type.value : this.type,
       parentId: data.parentId.present ? data.parentId.value : this.parentId,
+      taxRate: data.taxRate.present ? data.taxRate.value : this.taxRate,
     );
   }
 
@@ -1378,13 +1404,14 @@ class Category extends DataClass implements Insertable<Category> {
           ..write('companyId: $companyId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
-          ..write('parentId: $parentId')
+          ..write('parentId: $parentId, ')
+          ..write('taxRate: $taxRate')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, companyId, name, type, parentId);
+  int get hashCode => Object.hash(id, companyId, name, type, parentId, taxRate);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1393,7 +1420,8 @@ class Category extends DataClass implements Insertable<Category> {
           other.companyId == this.companyId &&
           other.name == this.name &&
           other.type == this.type &&
-          other.parentId == this.parentId);
+          other.parentId == this.parentId &&
+          other.taxRate == this.taxRate);
 }
 
 class CategoriesCompanion extends UpdateCompanion<Category> {
@@ -1402,12 +1430,14 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
   final Value<String> name;
   final Value<String> type;
   final Value<int?> parentId;
+  final Value<double?> taxRate;
   const CategoriesCompanion({
     this.id = const Value.absent(),
     this.companyId = const Value.absent(),
     this.name = const Value.absent(),
     this.type = const Value.absent(),
     this.parentId = const Value.absent(),
+    this.taxRate = const Value.absent(),
   });
   CategoriesCompanion.insert({
     this.id = const Value.absent(),
@@ -1415,6 +1445,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     required String name,
     this.type = const Value.absent(),
     this.parentId = const Value.absent(),
+    this.taxRate = const Value.absent(),
   })  : companyId = Value(companyId),
         name = Value(name);
   static Insertable<Category> custom({
@@ -1423,6 +1454,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     Expression<String>? name,
     Expression<String>? type,
     Expression<int>? parentId,
+    Expression<double>? taxRate,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -1430,6 +1462,7 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       if (name != null) 'name': name,
       if (type != null) 'type': type,
       if (parentId != null) 'parent_id': parentId,
+      if (taxRate != null) 'tax_rate': taxRate,
     });
   }
 
@@ -1438,13 +1471,15 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
       Value<int>? companyId,
       Value<String>? name,
       Value<String>? type,
-      Value<int?>? parentId}) {
+      Value<int?>? parentId,
+      Value<double?>? taxRate}) {
     return CategoriesCompanion(
       id: id ?? this.id,
       companyId: companyId ?? this.companyId,
       name: name ?? this.name,
       type: type ?? this.type,
       parentId: parentId ?? this.parentId,
+      taxRate: taxRate ?? this.taxRate,
     );
   }
 
@@ -1466,6 +1501,9 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
     if (parentId.present) {
       map['parent_id'] = Variable<int>(parentId.value);
     }
+    if (taxRate.present) {
+      map['tax_rate'] = Variable<double>(taxRate.value);
+    }
     return map;
   }
 
@@ -1476,7 +1514,8 @@ class CategoriesCompanion extends UpdateCompanion<Category> {
           ..write('companyId: $companyId, ')
           ..write('name: $name, ')
           ..write('type: $type, ')
-          ..write('parentId: $parentId')
+          ..write('parentId: $parentId, ')
+          ..write('taxRate: $taxRate')
           ..write(')'))
         .toString();
   }
@@ -1561,6 +1600,12 @@ class $TransactionsTable extends Transactions
   late final GeneratedColumn<int> toAccountId = GeneratedColumn<int>(
       'to_account_id', aliasedName, true,
       type: DriftSqlType.int, requiredDuringInsert: false);
+  static const VerificationMeta _exchangeRateMeta =
+      const VerificationMeta('exchangeRate');
+  @override
+  late final GeneratedColumn<double> exchangeRate = GeneratedColumn<double>(
+      'exchange_rate', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _isRecurringMeta =
       const VerificationMeta('isRecurring');
   @override
@@ -1597,6 +1642,7 @@ class $TransactionsTable extends Transactions
         description,
         isFixed,
         toAccountId,
+        exchangeRate,
         isRecurring,
         recurrenceInterval,
         createdAt
@@ -1666,6 +1712,12 @@ class $TransactionsTable extends Transactions
           toAccountId.isAcceptableOrUnknown(
               data['to_account_id']!, _toAccountIdMeta));
     }
+    if (data.containsKey('exchange_rate')) {
+      context.handle(
+          _exchangeRateMeta,
+          exchangeRate.isAcceptableOrUnknown(
+              data['exchange_rate']!, _exchangeRateMeta));
+    }
     if (data.containsKey('is_recurring')) {
       context.handle(
           _isRecurringMeta,
@@ -1711,6 +1763,8 @@ class $TransactionsTable extends Transactions
           .read(DriftSqlType.bool, data['${effectivePrefix}is_fixed'])!,
       toAccountId: attachedDatabase.typeMapping
           .read(DriftSqlType.int, data['${effectivePrefix}to_account_id']),
+      exchangeRate: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}exchange_rate']),
       isRecurring: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_recurring'])!,
       recurrenceInterval: attachedDatabase.typeMapping.read(
@@ -1737,6 +1791,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
   final String? description;
   final bool isFixed;
   final int? toAccountId;
+  final double? exchangeRate;
   final bool isRecurring;
   final String? recurrenceInterval;
   final DateTime createdAt;
@@ -1751,6 +1806,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       this.description,
       required this.isFixed,
       this.toAccountId,
+      this.exchangeRate,
       required this.isRecurring,
       this.recurrenceInterval,
       required this.createdAt});
@@ -1772,6 +1828,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
     map['is_fixed'] = Variable<bool>(isFixed);
     if (!nullToAbsent || toAccountId != null) {
       map['to_account_id'] = Variable<int>(toAccountId);
+    }
+    if (!nullToAbsent || exchangeRate != null) {
+      map['exchange_rate'] = Variable<double>(exchangeRate);
     }
     map['is_recurring'] = Variable<bool>(isRecurring);
     if (!nullToAbsent || recurrenceInterval != null) {
@@ -1799,6 +1858,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       toAccountId: toAccountId == null && nullToAbsent
           ? const Value.absent()
           : Value(toAccountId),
+      exchangeRate: exchangeRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(exchangeRate),
       isRecurring: Value(isRecurring),
       recurrenceInterval: recurrenceInterval == null && nullToAbsent
           ? const Value.absent()
@@ -1821,6 +1883,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       description: serializer.fromJson<String?>(json['description']),
       isFixed: serializer.fromJson<bool>(json['isFixed']),
       toAccountId: serializer.fromJson<int?>(json['toAccountId']),
+      exchangeRate: serializer.fromJson<double?>(json['exchangeRate']),
       isRecurring: serializer.fromJson<bool>(json['isRecurring']),
       recurrenceInterval:
           serializer.fromJson<String?>(json['recurrenceInterval']),
@@ -1841,6 +1904,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       'description': serializer.toJson<String?>(description),
       'isFixed': serializer.toJson<bool>(isFixed),
       'toAccountId': serializer.toJson<int?>(toAccountId),
+      'exchangeRate': serializer.toJson<double?>(exchangeRate),
       'isRecurring': serializer.toJson<bool>(isRecurring),
       'recurrenceInterval': serializer.toJson<String?>(recurrenceInterval),
       'createdAt': serializer.toJson<DateTime>(createdAt),
@@ -1858,6 +1922,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           Value<String?> description = const Value.absent(),
           bool? isFixed,
           Value<int?> toAccountId = const Value.absent(),
+          Value<double?> exchangeRate = const Value.absent(),
           bool? isRecurring,
           Value<String?> recurrenceInterval = const Value.absent(),
           DateTime? createdAt}) =>
@@ -1872,6 +1937,8 @@ class Transaction extends DataClass implements Insertable<Transaction> {
         description: description.present ? description.value : this.description,
         isFixed: isFixed ?? this.isFixed,
         toAccountId: toAccountId.present ? toAccountId.value : this.toAccountId,
+        exchangeRate:
+            exchangeRate.present ? exchangeRate.value : this.exchangeRate,
         isRecurring: isRecurring ?? this.isRecurring,
         recurrenceInterval: recurrenceInterval.present
             ? recurrenceInterval.value
@@ -1893,6 +1960,9 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       isFixed: data.isFixed.present ? data.isFixed.value : this.isFixed,
       toAccountId:
           data.toAccountId.present ? data.toAccountId.value : this.toAccountId,
+      exchangeRate: data.exchangeRate.present
+          ? data.exchangeRate.value
+          : this.exchangeRate,
       isRecurring:
           data.isRecurring.present ? data.isRecurring.value : this.isRecurring,
       recurrenceInterval: data.recurrenceInterval.present
@@ -1915,6 +1985,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           ..write('description: $description, ')
           ..write('isFixed: $isFixed, ')
           ..write('toAccountId: $toAccountId, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('isRecurring: $isRecurring, ')
           ..write('recurrenceInterval: $recurrenceInterval, ')
           ..write('createdAt: $createdAt')
@@ -1934,6 +2005,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
       description,
       isFixed,
       toAccountId,
+      exchangeRate,
       isRecurring,
       recurrenceInterval,
       createdAt);
@@ -1951,6 +2023,7 @@ class Transaction extends DataClass implements Insertable<Transaction> {
           other.description == this.description &&
           other.isFixed == this.isFixed &&
           other.toAccountId == this.toAccountId &&
+          other.exchangeRate == this.exchangeRate &&
           other.isRecurring == this.isRecurring &&
           other.recurrenceInterval == this.recurrenceInterval &&
           other.createdAt == this.createdAt);
@@ -1967,6 +2040,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
   final Value<String?> description;
   final Value<bool> isFixed;
   final Value<int?> toAccountId;
+  final Value<double?> exchangeRate;
   final Value<bool> isRecurring;
   final Value<String?> recurrenceInterval;
   final Value<DateTime> createdAt;
@@ -1981,6 +2055,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.description = const Value.absent(),
     this.isFixed = const Value.absent(),
     this.toAccountId = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     this.isRecurring = const Value.absent(),
     this.recurrenceInterval = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -1996,6 +2071,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     this.description = const Value.absent(),
     this.isFixed = const Value.absent(),
     this.toAccountId = const Value.absent(),
+    this.exchangeRate = const Value.absent(),
     this.isRecurring = const Value.absent(),
     this.recurrenceInterval = const Value.absent(),
     this.createdAt = const Value.absent(),
@@ -2015,6 +2091,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     Expression<String>? description,
     Expression<bool>? isFixed,
     Expression<int>? toAccountId,
+    Expression<double>? exchangeRate,
     Expression<bool>? isRecurring,
     Expression<String>? recurrenceInterval,
     Expression<DateTime>? createdAt,
@@ -2030,6 +2107,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       if (description != null) 'description': description,
       if (isFixed != null) 'is_fixed': isFixed,
       if (toAccountId != null) 'to_account_id': toAccountId,
+      if (exchangeRate != null) 'exchange_rate': exchangeRate,
       if (isRecurring != null) 'is_recurring': isRecurring,
       if (recurrenceInterval != null) 'recurrence_interval': recurrenceInterval,
       if (createdAt != null) 'created_at': createdAt,
@@ -2047,6 +2125,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       Value<String?>? description,
       Value<bool>? isFixed,
       Value<int?>? toAccountId,
+      Value<double?>? exchangeRate,
       Value<bool>? isRecurring,
       Value<String?>? recurrenceInterval,
       Value<DateTime>? createdAt}) {
@@ -2061,6 +2140,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
       description: description ?? this.description,
       isFixed: isFixed ?? this.isFixed,
       toAccountId: toAccountId ?? this.toAccountId,
+      exchangeRate: exchangeRate ?? this.exchangeRate,
       isRecurring: isRecurring ?? this.isRecurring,
       recurrenceInterval: recurrenceInterval ?? this.recurrenceInterval,
       createdAt: createdAt ?? this.createdAt,
@@ -2100,6 +2180,9 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
     if (toAccountId.present) {
       map['to_account_id'] = Variable<int>(toAccountId.value);
     }
+    if (exchangeRate.present) {
+      map['exchange_rate'] = Variable<double>(exchangeRate.value);
+    }
     if (isRecurring.present) {
       map['is_recurring'] = Variable<bool>(isRecurring.value);
     }
@@ -2125,6 +2208,7 @@ class TransactionsCompanion extends UpdateCompanion<Transaction> {
           ..write('description: $description, ')
           ..write('isFixed: $isFixed, ')
           ..write('toAccountId: $toAccountId, ')
+          ..write('exchangeRate: $exchangeRate, ')
           ..write('isRecurring: $isRecurring, ')
           ..write('recurrenceInterval: $recurrenceInterval, ')
           ..write('createdAt: $createdAt')
@@ -8452,6 +8536,7 @@ typedef $$CategoriesTableCreateCompanionBuilder = CategoriesCompanion Function({
   required String name,
   Value<String> type,
   Value<int?> parentId,
+  Value<double?> taxRate,
 });
 typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<int> id,
@@ -8459,6 +8544,7 @@ typedef $$CategoriesTableUpdateCompanionBuilder = CategoriesCompanion Function({
   Value<String> name,
   Value<String> type,
   Value<int?> parentId,
+  Value<double?> taxRate,
 });
 
 final class $$CategoriesTableReferences
@@ -8531,6 +8617,9 @@ class $$CategoriesTableFilterComposer
 
   ColumnFilters<int> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get taxRate => $composableBuilder(
+      column: $table.taxRate, builder: (column) => ColumnFilters(column));
 
   $$CompaniesTableFilterComposer get companyId {
     final $$CompaniesTableFilterComposer composer = $composerBuilder(
@@ -8616,6 +8705,9 @@ class $$CategoriesTableOrderingComposer
   ColumnOrderings<int> get parentId => $composableBuilder(
       column: $table.parentId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get taxRate => $composableBuilder(
+      column: $table.taxRate, builder: (column) => ColumnOrderings(column));
+
   $$CompaniesTableOrderingComposer get companyId {
     final $$CompaniesTableOrderingComposer composer = $composerBuilder(
         composer: this,
@@ -8657,6 +8749,9 @@ class $$CategoriesTableAnnotationComposer
 
   GeneratedColumn<int> get parentId =>
       $composableBuilder(column: $table.parentId, builder: (column) => column);
+
+  GeneratedColumn<double> get taxRate =>
+      $composableBuilder(column: $table.taxRate, builder: (column) => column);
 
   $$CompaniesTableAnnotationComposer get companyId {
     final $$CompaniesTableAnnotationComposer composer = $composerBuilder(
@@ -8750,6 +8845,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> type = const Value.absent(),
             Value<int?> parentId = const Value.absent(),
+            Value<double?> taxRate = const Value.absent(),
           }) =>
               CategoriesCompanion(
             id: id,
@@ -8757,6 +8853,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             name: name,
             type: type,
             parentId: parentId,
+            taxRate: taxRate,
           ),
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
@@ -8764,6 +8861,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             required String name,
             Value<String> type = const Value.absent(),
             Value<int?> parentId = const Value.absent(),
+            Value<double?> taxRate = const Value.absent(),
           }) =>
               CategoriesCompanion.insert(
             id: id,
@@ -8771,6 +8869,7 @@ class $$CategoriesTableTableManager extends RootTableManager<
             name: name,
             type: type,
             parentId: parentId,
+            taxRate: taxRate,
           ),
           withReferenceMapper: (p0) => p0
               .map((e) => (
@@ -8874,6 +8973,7 @@ typedef $$TransactionsTableCreateCompanionBuilder = TransactionsCompanion
   Value<String?> description,
   Value<bool> isFixed,
   Value<int?> toAccountId,
+  Value<double?> exchangeRate,
   Value<bool> isRecurring,
   Value<String?> recurrenceInterval,
   Value<DateTime> createdAt,
@@ -8890,6 +8990,7 @@ typedef $$TransactionsTableUpdateCompanionBuilder = TransactionsCompanion
   Value<String?> description,
   Value<bool> isFixed,
   Value<int?> toAccountId,
+  Value<double?> exchangeRate,
   Value<bool> isRecurring,
   Value<String?> recurrenceInterval,
   Value<DateTime> createdAt,
@@ -8974,6 +9075,9 @@ class $$TransactionsTableFilterComposer
 
   ColumnFilters<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get exchangeRate => $composableBuilder(
+      column: $table.exchangeRate, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isRecurring => $composableBuilder(
       column: $table.isRecurring, builder: (column) => ColumnFilters(column));
@@ -9076,6 +9180,10 @@ class $$TransactionsTableOrderingComposer
   ColumnOrderings<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get exchangeRate => $composableBuilder(
+      column: $table.exchangeRate,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<bool> get isRecurring => $composableBuilder(
       column: $table.isRecurring, builder: (column) => ColumnOrderings(column));
 
@@ -9176,6 +9284,9 @@ class $$TransactionsTableAnnotationComposer
 
   GeneratedColumn<int> get toAccountId => $composableBuilder(
       column: $table.toAccountId, builder: (column) => column);
+
+  GeneratedColumn<double> get exchangeRate => $composableBuilder(
+      column: $table.exchangeRate, builder: (column) => column);
 
   GeneratedColumn<bool> get isRecurring => $composableBuilder(
       column: $table.isRecurring, builder: (column) => column);
@@ -9280,6 +9391,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<bool> isFixed = const Value.absent(),
             Value<int?> toAccountId = const Value.absent(),
+            Value<double?> exchangeRate = const Value.absent(),
             Value<bool> isRecurring = const Value.absent(),
             Value<String?> recurrenceInterval = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -9295,6 +9407,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             description: description,
             isFixed: isFixed,
             toAccountId: toAccountId,
+            exchangeRate: exchangeRate,
             isRecurring: isRecurring,
             recurrenceInterval: recurrenceInterval,
             createdAt: createdAt,
@@ -9310,6 +9423,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             Value<String?> description = const Value.absent(),
             Value<bool> isFixed = const Value.absent(),
             Value<int?> toAccountId = const Value.absent(),
+            Value<double?> exchangeRate = const Value.absent(),
             Value<bool> isRecurring = const Value.absent(),
             Value<String?> recurrenceInterval = const Value.absent(),
             Value<DateTime> createdAt = const Value.absent(),
@@ -9325,6 +9439,7 @@ class $$TransactionsTableTableManager extends RootTableManager<
             description: description,
             isFixed: isFixed,
             toAccountId: toAccountId,
+            exchangeRate: exchangeRate,
             isRecurring: isRecurring,
             recurrenceInterval: recurrenceInterval,
             createdAt: createdAt,

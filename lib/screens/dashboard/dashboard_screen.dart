@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../../db/database.dart';
 import '../../providers/database_provider.dart';
-import '../../widgets/summary_card.dart';
-import '../../widgets/status_badge.dart';
+import '../../theme/tabys_theme.dart';
 import '../../widgets/priority_badge.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -14,802 +14,899 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final company = ref.watch(selectedCompanyProvider);
-    final accountsAsync = ref.watch(accountsProvider);
-    final transactionsAsync = ref.watch(transactionsProvider);
-    final tasksAsync = ref.watch(tasksProvider);
-    final db = ref.watch(databaseProvider);
-
     if (company == null) {
-      return const Center(child: Text('Нет компаний. Создайте компанию.'));
-    }
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Summary cards
-          accountsAsync.when(
-            data: (accounts) {
-              final totalBalance = accounts.fold(0.0, (s, a) => s + a.balance);
-              return transactionsAsync.when(
-                data: (txs) {
-                  final income = txs
-                      .where((t) => t.type == 'income')
-                      .fold(0.0, (s, t) => s + t.amount);
-                  final expense = txs
-                      .where((t) => t.type == 'expense')
-                      .fold(0.0, (s, t) => s + t.amount);
-                  final isWide = MediaQuery.of(context).size.width >= 500;
-                  final cards = [
-                    SummaryCard(
-                      title: 'Общий баланс',
-                      amount: totalBalance,
-                      icon: Icons.account_balance_wallet,
-                      color: Colors.blue,
-                      currency: company.currency,
-                    ),
-                    SummaryCard(
-                      title: 'Доходы месяца',
-                      amount: income,
-                      icon: Icons.trending_up,
-                      color: Colors.green,
-                      currency: company.currency,
-                    ),
-                    SummaryCard(
-                      title: 'Расходы месяца',
-                      amount: expense,
-                      icon: Icons.trending_down,
-                      color: Colors.red,
-                      currency: company.currency,
-                    ),
-                  ];
-                  if (isWide) {
-                    return Row(
-                      children: [
-                        for (int i = 0; i < cards.length; i++) ...[
-                          if (i > 0) const SizedBox(width: 12),
-                          Expanded(child: cards[i]),
-                        ],
-                      ],
-                    );
-                  }
-                  // На узком экране — 2 колонки: баланс на всю ширину, доходы+расходы рядом
-                  return Column(
-                    children: [
-                      cards[0],
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(child: cards[1]),
-                          const SizedBox(width: 10),
-                          Expanded(child: cards[2]),
-                        ],
-                      ),
-                    ],
-                  );
-                },
-                loading: () => const CircularProgressIndicator(),
-                error: (e, _) => Text('Ошибка: $e'),
-              );
-            },
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('Ошибка: $e'),
-          ),
-
-          const SizedBox(height: 12),
-          const _LowStockCard(),
-          const _HealthScoreCard(),
-          const SizedBox(height: 12),
-          const _CashFlowCard(),
-          const _BudgetAlertsCard(),
-          const SizedBox(height: 12),
-          const _PeriodComparisonCard(),
-          const SizedBox(height: 12),
-          const _BreakEvenCard(),
-          const SizedBox(height: 24),
-
-          // Chart
-          Text(
-            'Доходы и расходы за 6 месяцев',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 12),
-          FutureBuilder<Map<String, double>>(
-            future: db.getMonthlyTotals(company.id, 6),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return const SizedBox(
-                  height: 200,
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-              return _MonthlyChart(data: snap.data!);
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Upcoming tasks
-          Text(
-            'Ближайшие задачи',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const SizedBox(height: 8),
-          tasksAsync.when(
-            data: (tasks) {
-              final open = tasks
-                  .where((t) => t.status != 'done' && t.status != 'cancelled')
-                  .take(5)
-                  .toList();
-              if (open.isEmpty) {
-                return const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Text('Нет активных задач'),
-                  ),
-                );
-              }
-              return Card(
-                child: Column(
-                  children: open
-                      .map((task) => _TaskTile(task: task))
-                      .toList(),
-                ),
-              );
-            },
-            loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('Ошибка: $e'),
-          ),
-
-          const SizedBox(height: 24),
-
-          // KPI: overdue invoices + top expenses + expiring contracts
-          FutureBuilder<List<dynamic>>(
-            future: Future.wait([
-              db.watchInvoicesByCompany(company.id).first,
-              db.getPnLByCategory(
-                company.id,
-                DateTime(DateTime.now().year, DateTime.now().month, 1),
-                DateTime(DateTime.now().year, DateTime.now().month + 1, 0),
-              ),
-              db.getContractsByCompany(company.id),
-            ]),
-            builder: (context, snap) {
-              if (!snap.hasData) return const SizedBox();
-              final invoices = snap.data![0] as List;
-              final pnl = snap.data![1] as Map<String, double>;
-              final contracts = snap.data![2] as List<Contract>;
-
-              final now = DateTime.now();
-              final in30 = now.add(const Duration(days: 30));
-              final expiring = contracts
-                  .where((c) =>
-                      c.endDate != null &&
-                      c.endDate!.isAfter(now) &&
-                      c.endDate!.isBefore(in30) &&
-                      c.status == 'active')
-                  .toList()
-                ..sort((a, b) => a.endDate!.compareTo(b.endDate!));
-
-              final overdue = invoices
-                  .where((inv) =>
-                      inv.dueDate != null &&
-                      inv.dueDate!.isBefore(now) &&
-                      inv.status != 'paid' &&
-                      inv.status != 'cancelled')
-                  .length;
-
-              final expenses = pnl.entries
-                  .where((e) => e.value < 0)
-                  .map((e) =>
-                      MapEntry(e.key, e.value.abs()))
-                  .toList()
-                ..sort((a, b) => b.value.compareTo(a.value));
-              final topExpenses = expenses.take(3).toList();
-              final totalExpense =
-                  expenses.fold(0.0, (s, e) => s + e.value);
-
-              final clientMap = <String, double>{};
-              for (final inv in invoices) {
-                if (inv.status != 'cancelled') {
-                  final name = inv.clientName as String;
-                  clientMap[name] =
-                      (clientMap[name] ?? 0.0) + (inv.totalAmount as double);
-                }
-              }
-              final topClients = (clientMap.entries.toList()
-                    ..sort((a, b) => b.value.compareTo(a.value)))
-                  .take(3)
-                  .toList();
-              final fmtNum = NumberFormat('#,##0', 'ru_RU');
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (overdue > 0) ...[
-                    Text(
-                      'Просроченные сделки',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      color: Colors.red.shade50,
-                      child: ListTile(
-                        leading: const Icon(Icons.warning_amber,
-                            color: Colors.red),
-                        title: Text(
-                          '$overdue просроченных инвойсов',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.red),
-                        ),
-                        subtitle: const Text(
-                            'Требуют внимания'),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (expiring.isNotEmpty) ...[
-                    Text(
-                      'Истекающие договоры (30 дней)',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      color: Colors.orange.shade50,
-                      child: Column(
-                        children: expiring.map((c) => ListTile(
-                          leading: const Icon(Icons.description,
-                              color: Colors.orange),
-                          title: Text(
-                            c.counterparty,
-                            style: const TextStyle(fontWeight: FontWeight.w500),
-                          ),
-                          subtitle: Text(
-                            'Истекает: ${DateFormat('dd.MM.yyyy').format(c.endDate!)}${c.number != null ? ' · №${c.number}' : ''}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          dense: true,
-                        )).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                  if (topExpenses.isNotEmpty) ...[
-                    Text(
-                      'Топ расходов месяца',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          children: topExpenses.map((e) {
-                            final pct = totalExpense > 0
-                                ? e.value / totalExpense
-                                : 0.0;
-                            return Padding(
-                              padding:
-                                  const EdgeInsets.only(bottom: 10),
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Row(children: [
-                                    Expanded(
-                                        child: Text(e.key,
-                                            style: const TextStyle(
-                                                fontSize: 13))),
-                                    Text(
-                                      '${(pct * 100).toStringAsFixed(0)}%',
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13),
-                                    ),
-                                  ]),
-                                  const SizedBox(height: 4),
-                                  ClipRRect(
-                                    borderRadius:
-                                        BorderRadius.circular(4),
-                                    child: LinearProgressIndicator(
-                                      value: pct,
-                                      backgroundColor:
-                                          Colors.grey.shade200,
-                                      minHeight: 5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ),
-                  ],
-                  if (topClients.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      'Топ клиентов',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Card(
-                      child: Column(
-                        children: topClients
-                            .map((e) => ListTile(
-                                  leading: CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor:
-                                        Colors.purple.shade100,
-                                    child: const Icon(Icons.person,
-                                        size: 16,
-                                        color: Colors.purple),
-                                  ),
-                                  title: Text(e.key,
-                                      style: const TextStyle(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 14)),
-                                  trailing: Text(
-                                    fmtNum.format(e.value),
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14),
-                                  ),
-                                  dense: true,
-                                ))
-                            .toList(),
-                      ),
-                    ),
-                  ],
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 16),
-          const _ExpenseGrowthCard(),
-        ],
-      ),
-    );
-  }
-}
-
-List<FlSpot> _rollingAvg(List<FlSpot> spots) {
-  return List.generate(spots.length, (i) {
-    final from = (i - 1).clamp(0, spots.length - 1);
-    final to = (i + 1).clamp(0, spots.length - 1);
-    var sum = 0.0;
-    var count = 0;
-    for (var j = from; j <= to; j++) {
-      sum += spots[j].y;
-      count++;
-    }
-    return FlSpot(spots[i].x, sum / count);
-  });
-}
-
-class _MonthlyChart extends StatelessWidget {
-  final Map<String, double> data;
-
-  const _MonthlyChart({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final months = List.generate(6, (i) {
-      final d = DateTime(now.year, now.month - 5 + i, 1);
-      return '${d.year}-${d.month.toString().padLeft(2, '0')}';
-    });
-
-    final incomeSpots = <FlSpot>[];
-    final expenseSpots = <FlSpot>[];
-
-    for (int i = 0; i < months.length; i++) {
-      incomeSpots.add(FlSpot(i.toDouble(), data['income_${months[i]}'] ?? 0));
-      expenseSpots.add(FlSpot(i.toDouble(), data['expense_${months[i]}'] ?? 0));
-    }
-
-    final monthLabels = months.map((m) {
-      final parts = m.split('-');
-      final d = DateTime(int.parse(parts[0]), int.parse(parts[1]));
-      return DateFormat.MMM('ru').format(d);
-    }).toList();
-
-    final hasData = incomeSpots.any((s) => s.y > 0);
-    final avgSpots = hasData ? _rollingAvg(incomeSpots) : <FlSpot>[];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          height: 200,
-          child: LineChart(
-            LineChartData(
-              gridData: const FlGridData(show: true),
-              titlesData: FlTitlesData(
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (v, m) {
-                      final i = v.toInt();
-                      if (i < 0 || i >= monthLabels.length) return const SizedBox();
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(monthLabels[i], style: const TextStyle(fontSize: 10)),
-                      );
-                    },
-                  ),
-                ),
-                leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-              ),
-              lineBarsData: [
-                LineChartBarData(
-                  spots: incomeSpots,
-                  isCurved: true,
-                  color: Colors.green,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.green.withValues(alpha: 0.1),
-                  ),
-                ),
-                LineChartBarData(
-                  spots: expenseSpots,
-                  isCurved: true,
-                  color: Colors.red,
-                  barWidth: 2,
-                  dotData: const FlDotData(show: false),
-                  belowBarData: BarAreaData(
-                    show: true,
-                    color: Colors.red.withValues(alpha: 0.1),
-                  ),
-                ),
-                if (avgSpots.isNotEmpty)
-                  LineChartBarData(
-                    spots: avgSpots,
-                    isCurved: true,
-                    color: Colors.green.withValues(alpha: 0.55),
-                    barWidth: 1.5,
-                    dotData: const FlDotData(show: false),
-                    dashArray: [6, 4],
-                  ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _ChartLegendItem(color: Colors.green, label: 'Доходы'),
-            const SizedBox(width: 16),
-            _ChartLegendItem(color: Colors.red, label: 'Расходы'),
-            if (avgSpots.isNotEmpty) ...[
-              const SizedBox(width: 16),
-              _ChartLegendItem(
-                  color: Colors.green.withValues(alpha: 0.6),
-                  label: 'Скольз. ср.'),
-            ],
+            const Icon(Icons.business_outlined,
+                size: 56, color: TColors.muted),
+            const SizedBox(height: 16),
+            Text('Нет компаний',
+                style: GoogleFonts.syne(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: TColors.text)),
+            const SizedBox(height: 8),
+            Text('Создайте компанию через меню',
+                style: GoogleFonts.inter(fontSize: 13, color: TColors.muted)),
           ],
         ),
-      ],
-    );
-  }
-}
+      );
+    }
 
-class _TaskTile extends StatelessWidget {
-  final Task task;
+    final accountsAsync = ref.watch(accountsProvider);
+    final txAsync = ref.watch(transactionsProvider);
+    final tasksAsync = ref.watch(tasksProvider);
+    final chartAsync = ref.watch(last6MonthsTransactionsProvider);
+    final invoicesAsync = ref.watch(invoicesProvider);
 
-  const _TaskTile({required this.task});
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(task.title),
-      subtitle: task.dueDate != null
-          ? Text(
-              'Срок: ${DateFormat('dd.MM.yyyy').format(task.dueDate!)}',
-              style: const TextStyle(fontSize: 12),
-            )
-          : null,
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PriorityBadge(priority: task.priority),
-          const SizedBox(width: 8),
-          StatusBadge(status: task.status),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Cash Flow Card ───────────────────────────────────────────────────────────
-
-String _currencySymbol(String code) {
-  const m = {
-    'KGS': 'с',
-    'RUB': '₽',
-    'USD': '\$',
-    'EUR': '€',
-    'KZT': '₸',
-    'UZS': 'сўм',
-  };
-  return m[code] ?? code;
-}
-
-class _CashFlowCard extends ConsumerWidget {
-  const _CashFlowCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    final txsAsync = ref.watch(transactionsProvider);
-    if (company == null) return const SizedBox();
-
-    return txsAsync.when(
-      data: (txs) {
-        final income = txs
-            .where((t) => t.type == 'income')
-            .fold(0.0, (s, t) => s + t.amount);
-        final expense = txs
-            .where((t) => t.type == 'expense')
-            .fold(0.0, (s, t) => s + t.amount);
-        final net = income - expense;
-        final isPositive = net >= 0;
-        final fmt = NumberFormat('#,##0', 'ru_RU');
-        final sym = _currencySymbol(company.currency);
-
-        return Card(
-          color: isPositive ? Colors.green.shade50 : Colors.red.shade50,
-          child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  isPositive ? Icons.trending_up : Icons.trending_down,
-                  color: isPositive ? Colors.green[700] : Colors.red[700],
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Денежный поток (месяц)',
-                        style: TextStyle(
-                            fontSize: 11, color: Colors.grey[600]),
-                      ),
-                      Text(
-                        '${isPositive ? "+" : ""}${fmt.format(net)} $sym',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: isPositive
-                              ? Colors.green[700]
-                              : Colors.red[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '↑ ${fmt.format(income)} $sym',
-                      style: const TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
-                    Text(
-                      '↓ ${fmt.format(expense)} $sym',
-                      style: const TextStyle(
-                          color: Colors.red,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
-  }
-}
-
-// ─── Budget Alerts Card ───────────────────────────────────────────────────────
-
-class _BudgetAlertsCard extends ConsumerWidget {
-  const _BudgetAlertsCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    if (company == null) return const SizedBox();
-    final db = ref.watch(databaseProvider);
-    final now = DateTime.now();
-
-    return FutureBuilder<List<dynamic>>(
-      future: Future.wait([
-        db.getBudgetsByCompany(company.id),
-        db.getCategoriesByCompany(company.id),
-        db.getPnLByCategory(
-          company.id,
-          DateTime(now.year, now.month, 1),
-          DateTime(now.year, now.month + 1, 0),
-        ),
-      ]),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox();
-        final budgets = snap.data![0] as List<Budget>;
-        final cats = snap.data![1] as List<Category>;
-        final pnl = snap.data![2] as Map<String, double>;
-        if (budgets.isEmpty) return const SizedBox();
-
-        final catMap = {for (final c in cats) c.id: c.name};
-        final fmt = NumberFormat('#,##0', 'ru_RU');
-        final sym = _currencySymbol(company.currency);
-
-        final alerts = <({String name, double spent, double limit})>[];
-        for (final b in budgets) {
-          final catName = catMap[b.categoryId];
-          if (catName == null) continue;
-          final spent = (pnl[catName] ?? 0.0).abs();
-          if (spent > b.monthlyAmount) {
-            alerts.add((name: catName, spent: spent, limit: b.monthlyAmount));
-          }
-        }
-        if (alerts.isEmpty) return const SizedBox();
-
-        return Column(
+    return Container(
+      color: TColors.ink,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(22),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 16),
-            Text(
-              'Превышение бюджета',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
+            // ── KPI row ──────────────────────────────────────────────────────
+            _KpiRow(
+              currency: company.currency,
+              accountsAsync: accountsAsync,
+              txAsync: txAsync,
             ),
+            const SizedBox(height: 18),
+
+            // ── Mid row: Chart + Accounts ─────────────────────────────────
+            LayoutBuilder(builder: (ctx, bc) {
+              if (bc.maxWidth > 700) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _PnlChartPanel(chartAsync: chartAsync),
+                    ),
+                    const SizedBox(width: 14),
+                    SizedBox(
+                      width: 300,
+                      child: _AccountsPanel(
+                          accountsAsync: accountsAsync,
+                          currency: company.currency),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  _PnlChartPanel(chartAsync: chartAsync),
+                  const SizedBox(height: 14),
+                  _AccountsPanel(
+                      accountsAsync: accountsAsync, currency: company.currency),
+                ],
+              );
+            }),
+            const SizedBox(height: 18),
+
+            // ── Bottom row: Transactions + (AR aging + Tasks) ─────────────
+            LayoutBuilder(builder: (ctx, bc) {
+              if (bc.maxWidth > 700) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _TransactionsPanel(
+                          txAsync: txAsync, currency: company.currency),
+                    ),
+                    const SizedBox(width: 14),
+                    SizedBox(
+                      width: 300,
+                      child: Column(
+                        children: [
+                          _ArAgingPanel(invoicesAsync: invoicesAsync),
+                          const SizedBox(height: 14),
+                          _TasksPanel(tasksAsync: tasksAsync),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  _TransactionsPanel(
+                      txAsync: txAsync, currency: company.currency),
+                  const SizedBox(height: 14),
+                  _ArAgingPanel(invoicesAsync: invoicesAsync),
+                  const SizedBox(height: 14),
+                  _TasksPanel(tasksAsync: tasksAsync),
+                ],
+              );
+            }),
+
             const SizedBox(height: 8),
-            Card(
-              color: Colors.red.shade50,
-              child: Column(
-                children: alerts
-                    .map((a) => ListTile(
-                          leading: const Icon(Icons.warning_amber,
-                              color: Colors.red),
-                          title: Text(a.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w500)),
-                          subtitle: Text(
-                              'Потрачено ${fmt.format(a.spent)} $sym'
-                              ' / Бюджет ${fmt.format(a.limit)} $sym'),
-                          trailing: Text(
-                            '+${((a.spent / a.limit - 1) * 100).toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                                color: Colors.red,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14),
-                          ),
-                          dense: true,
-                        ))
-                    .toList(),
-              ),
-            ),
           ],
-        );
-      },
+        ),
+      ),
     );
   }
 }
 
-// ─── Period Comparison Card ───────────────────────────────────────────────────
+// ─── KPI Row ──────────────────────────────────────────────────────────────────
 
-class _PeriodComparisonCard extends ConsumerWidget {
-  const _PeriodComparisonCard();
+class _KpiRow extends StatelessWidget {
+  final String currency;
+  final AsyncValue<List<Account>> accountsAsync;
+  final AsyncValue<List<Transaction>> txAsync;
+
+  const _KpiRow(
+      {required this.currency,
+      required this.accountsAsync,
+      required this.txAsync});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    if (company == null) return const SizedBox();
-    final db = ref.watch(databaseProvider);
+  Widget build(BuildContext context) {
+    return accountsAsync.when(
+      loading: () => const SizedBox(height: 100, child: _KpiSkeleton()),
+      error: (_, __) => const SizedBox(),
+      data: (accounts) => txAsync.when(
+        loading: () => const SizedBox(height: 100, child: _KpiSkeleton()),
+        error: (_, __) => const SizedBox(),
+        data: (txs) {
+          final totalBalance =
+              accounts.fold(0.0, (s, a) => s + a.balance);
+          final income = txs
+              .where((t) => t.type == 'income')
+              .fold(0.0, (s, t) => s + t.amount);
+          final expense = txs
+              .where((t) => t.type == 'expense')
+              .fold(0.0, (s, t) => s + t.amount);
+          final profit = income - expense;
 
-    return FutureBuilder<Map<String, double>>(
-      future: db.getMonthlyTotals(company.id, 2),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox();
-        final data = snap.data!;
-        final now = DateTime.now();
-        final thisKey =
-            '${now.year}-${now.month.toString().padLeft(2, '0')}';
-        final last = DateTime(now.year, now.month - 1);
-        final lastKey =
-            '${last.year}-${last.month.toString().padLeft(2, '0')}';
+          return LayoutBuilder(builder: (ctx, bc) {
+            final cols = bc.maxWidth > 600 ? 4 : 2;
+            return GridView.count(
+              crossAxisCount: cols,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: bc.maxWidth > 600 ? 2.0 : 1.7,
+              children: [
+                _KpiCard(
+                  label: 'Общий баланс',
+                  value: totalBalance,
+                  currency: currency,
+                  accentColor: TColors.gold,
+                  glowColor: TColors.goldGlow,
+                ),
+                _KpiCard(
+                  label: 'Доходы / месяц',
+                  value: income,
+                  currency: currency,
+                  accentColor: TColors.green,
+                  glowColor: TColors.greenGlow,
+                  changePositive: true,
+                ),
+                _KpiCard(
+                  label: 'Расходы / месяц',
+                  value: expense,
+                  currency: currency,
+                  accentColor: TColors.red,
+                  glowColor: TColors.redGlow,
+                ),
+                _KpiCard(
+                  label: 'Чистая прибыль',
+                  value: profit,
+                  currency: currency,
+                  accentColor: TColors.blue,
+                  glowColor: TColors.blueGlow,
+                  changePositive: profit >= 0,
+                ),
+              ],
+            );
+          });
+        },
+      ),
+    );
+  }
+}
 
-        final thisIncome = data['income_$thisKey'] ?? 0;
-        final thisExpense = data['expense_$thisKey'] ?? 0;
-        final lastIncome = data['income_$lastKey'] ?? 0;
-        final lastExpense = data['expense_$lastKey'] ?? 0;
+class _KpiSkeleton extends StatelessWidget {
+  const _KpiSkeleton();
 
-        if (lastIncome == 0 && lastExpense == 0) return const SizedBox();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+          4,
+          (_) => Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: TColors.card,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: TColors.border),
+                  ),
+                ),
+              )),
+    );
+  }
+}
 
-        final fmt = NumberFormat('#,##0', 'ru_RU');
-        final sym = _currencySymbol(company.currency);
+class _KpiCard extends StatelessWidget {
+  final String label;
+  final double value;
+  final String currency;
+  final Color accentColor;
+  final Color glowColor;
+  final bool? changePositive;
 
-        double pct(double cur, double prev) =>
-            prev == 0 ? 0 : (cur - prev) / prev * 100;
+  const _KpiCard({
+    required this.label,
+    required this.value,
+    required this.currency,
+    required this.accentColor,
+    required this.glowColor,
+    this.changePositive,
+  });
 
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+  static final _fmt = NumberFormat('#,##0', 'ru_RU');
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = _fmt;
+    final absValue = value.abs();
+    final isNeg = value < 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: TColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TColors.border),
+      ),
+      child: Stack(
+        children: [
+          // Glow blob
+          Positioned(
+            top: -20,
+            right: -20,
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [glowColor, Colors.transparent],
+                ),
+              ),
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: TColors.muted,
+                    letterSpacing: .5,
+                    fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              RichText(
+                text: TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '$currency ',
+                      style: TabysTheme.mono(
+                          size: 13, color: TColors.muted),
+                    ),
+                    TextSpan(
+                      text: isNeg
+                          ? '−${fmt.format(absValue)}'
+                          : fmt.format(absValue),
+                      style: TabysTheme.mono(
+                          size: 20,
+                          color: isNeg ? TColors.red : TColors.text),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (changePositive != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: changePositive!
+                        ? TColors.greenBg
+                        : TColors.redBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    changePositive! ? '↑ прибыль' : '↓ убыток',
+                    style: TabysTheme.mono(
+                        size: 10,
+                        color: changePositive!
+                            ? TColors.green
+                            : TColors.red),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: TColors.goldBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('текущий месяц',
+                      style: TabysTheme.mono(
+                          size: 10, color: TColors.gold)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── P&L Chart Panel ──────────────────────────────────────────────────────────
+
+class _PnlChartPanel extends StatelessWidget {
+  final AsyncValue<List<Transaction>> chartAsync;
+
+  const _PnlChartPanel({required this.chartAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashPanel(
+      title: 'Доходы и расходы',
+      subtitle: 'Последние 6 месяцев',
+      child: SizedBox(
+        height: 200,
+        child: chartAsync.when(
+          loading: () => const Center(
+              child: CircularProgressIndicator(
+                  color: TColors.gold, strokeWidth: 2)),
+          error: (_, __) => Center(
+              child: Text('Ошибка загрузки',
+                  style: GoogleFonts.inter(color: TColors.muted))),
+          data: (txs) => _PnlChart(transactions: txs),
+        ),
+      ),
+    );
+  }
+}
+
+class _PnlChart extends StatelessWidget {
+  final List<Transaction> transactions;
+
+  const _PnlChart({required this.transactions});
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    // Build 6-month bucket list (ordered oldest → newest)
+    final months = List.generate(6, (i) {
+      final m = now.month - 5 + i;
+      final y = now.year + (m - 1) ~/ 12;
+      final month = ((m - 1) % 12) + 1;
+      return DateTime(y, month);
+    });
+
+    // Single-pass bucketing — O(n) instead of O(n × 6 × 3)
+    final incomeMap = <int, double>{};
+    final expenseMap = <int, double>{};
+    for (final t in transactions) {
+      final key = t.date.year * 100 + t.date.month;
+      if (t.type == 'income') {
+        incomeMap[key] = (incomeMap[key] ?? 0) + t.amount;
+      } else if (t.type == 'expense') {
+        expenseMap[key] = (expenseMap[key] ?? 0) + t.amount;
+      }
+    }
+
+    final income = months.map((m) => incomeMap[m.year * 100 + m.month] ?? 0.0).toList();
+    final expense = months.map((m) => expenseMap[m.year * 100 + m.month] ?? 0.0).toList();
+
+    final maxY = [...income, ...expense]
+        .reduce((a, b) => a > b ? a : b)
+        .clamp(1.0, double.infinity) *
+        1.2;
+
+    final monthLabels = months
+        .map((m) => DateFormat('MMM', 'ru').format(m))
+        .toList();
+
+    final barGroups = List.generate(6, (i) {
+      return BarChartGroupData(
+        x: i,
+        barRods: [
+          BarChartRodData(
+            toY: income[i],
+            color: TColors.green.withValues(alpha: .7),
+            width: 10,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          BarChartRodData(
+            toY: expense[i],
+            color: TColors.red.withValues(alpha: .6),
+            width: 10,
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ],
+        barsSpace: 3,
+      );
+    });
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 12, 0),
+      child: BarChart(
+        BarChartData(
+          maxY: maxY,
+          minY: 0,
+          barGroups: barGroups,
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(
+                color: TColors.border,
+                strokeWidth: .8,
+                dashArray: [4, 4]),
+          ),
+          borderData: FlBorderData(show: false),
+          titlesData: FlTitlesData(
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 46,
+                getTitlesWidget: (v, _) => Text(
+                  v >= 1000
+                      ? '${(v / 1000).toStringAsFixed(0)}K'
+                      : v.toStringAsFixed(0),
+                  style: TabysTheme.mono(size: 9, color: TColors.muted),
+                ),
+              ),
+            ),
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 22,
+                getTitlesWidget: (v, _) {
+                  final idx = v.toInt();
+                  if (idx < 0 || idx >= monthLabels.length) {
+                    return const SizedBox();
+                  }
+                  return Text(
+                    monthLabels[idx],
+                    style: TabysTheme.mono(size: 10, color: TColors.muted),
+                  );
+                },
+              ),
+            ),
+            topTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(
+                sideTitles: SideTitles(showTitles: false)),
+          ),
+          barTouchData: BarTouchData(
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => TColors.card2,
+              getTooltipItem: (group, _, rod, rodIdx) {
+                final label = rodIdx == 0 ? 'Доход' : 'Расход';
+                final fmt = NumberFormat('#,##0', 'ru_RU');
+                return BarTooltipItem(
+                  '$label\n${fmt.format(rod.toY)}',
+                  TabysTheme.mono(
+                      size: 11,
+                      color: rodIdx == 0 ? TColors.green : TColors.red),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Accounts Panel ───────────────────────────────────────────────────────────
+
+class _AccountsPanel extends StatelessWidget {
+  final AsyncValue<List<Account>> accountsAsync;
+  final String currency;
+
+  const _AccountsPanel(
+      {required this.accountsAsync, required this.currency});
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashPanel(
+      title: 'Счета',
+      subtitle: accountsAsync.valueOrNull != null
+          ? '${accountsAsync.valueOrNull!.length} активных'
+          : '',
+      child: accountsAsync.when(
+        loading: () => const Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(
+                color: TColors.gold, strokeWidth: 2)),
+        error: (_, __) => const SizedBox(),
+        data: (accounts) => Column(
+          children: accounts.map((a) => _AccountItem(account: a)).toList(),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountItem extends StatelessWidget {
+  final Account account;
+  const _AccountItem({required this.account});
+
+  static const _icons = {
+    'cash': ('💵', TColors.goldBg),
+    'bank': ('🏦', TColors.blueBg),
+    'card': ('💳', TColors.greenBg),
+  };
+
+  static final _fmt = NumberFormat('#,##0.##', 'ru_RU');
+
+  @override
+  Widget build(BuildContext context) {
+    final isNeg = account.balance < 0;
+    final fmt = _fmt;
+    final iconData = _icons[account.type] ?? ('💰', TColors.card2);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: TColors.border)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconData.$2,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Text(iconData.$1, style: const TextStyle(fontSize: 15)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(account.name,
+                    style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: TColors.text),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text(
+                  account.type == 'cash'
+                      ? 'Наличные'
+                      : account.type == 'bank'
+                          ? 'Банк'
+                          : 'Карта',
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: TColors.muted),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                isNeg
+                    ? '−${fmt.format(account.balance.abs())}'
+                    : fmt.format(account.balance),
+                style: TabysTheme.mono(
+                    size: 13,
+                    color: isNeg ? TColors.red : TColors.text),
+              ),
+              Text(account.currency,
+                  style: GoogleFonts.inter(
+                      fontSize: 10, color: TColors.muted)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Transactions Panel ───────────────────────────────────────────────────────
+
+class _TransactionsPanel extends StatelessWidget {
+  final AsyncValue<List<Transaction>> txAsync;
+  final String currency;
+
+  const _TransactionsPanel(
+      {required this.txAsync, required this.currency});
+
+  @override
+  Widget build(BuildContext context) {
+    return _DashPanel(
+      title: 'Последние транзакции',
+      subtitle: DateFormat('d MMMM yyyy', 'ru').format(DateTime.now()),
+      child: txAsync.when(
+        loading: () => const Padding(
+            padding: EdgeInsets.all(20),
+            child: CircularProgressIndicator(
+                color: TColors.gold, strokeWidth: 2)),
+        error: (_, __) => const SizedBox(),
+        data: (txs) {
+          final recent = [...txs]
+            ..sort((a, b) => b.date.compareTo(a.date));
+          final shown = recent.take(6).toList();
+          if (shown.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text('Нет транзакций за период',
+                  style: GoogleFonts.inter(
+                      fontSize: 13, color: TColors.muted)),
+            );
+          }
+          return Column(
+            children: shown
+                .map((t) =>
+                    _TxItem(tx: t, currency: currency))
+                .toList(),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _TxItem extends StatelessWidget {
+  final Transaction tx;
+  final String currency;
+  const _TxItem({required this.tx, required this.currency});
+
+  static final _fmt = NumberFormat('#,##0.##', 'ru_RU');
+
+  @override
+  Widget build(BuildContext context) {
+    final isIncome = tx.type == 'income';
+    final isTransfer = tx.type == 'transfer';
+    final color = isTransfer
+        ? TColors.blue
+        : isIncome
+            ? TColors.green
+            : TColors.red;
+    final fmt = _fmt;
+    final sign = isIncome ? '+' : isTransfer ? '' : '−';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        border: Border(
+            bottom: BorderSide(
+                color: TColors.border.withValues(alpha: .5))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+              boxShadow: [BoxShadow(color: color.withValues(alpha: .4), blurRadius: 6)],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Сравнение с прошлым месяцем',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  tx.description?.isNotEmpty == true
+                      ? tx.description!
+                      : _typeLabel(tx.type),
+                  style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: TColors.text),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CompareItem(
-                        label: 'Доходы',
-                        current: thisIncome,
-                        pct: pct(thisIncome, lastIncome),
-                        fmt: fmt,
-                        sym: sym,
-                        positiveIsGood: true,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _CompareItem(
-                        label: 'Расходы',
-                        current: thisExpense,
-                        pct: pct(thisExpense, lastExpense),
-                        fmt: fmt,
-                        sym: sym,
-                        positiveIsGood: false,
-                      ),
-                    ),
-                  ],
+                Text(
+                  DateFormat('dd.MM · HH:mm', 'ru').format(tx.date),
+                  style: GoogleFonts.inter(
+                      fontSize: 10, color: TColors.muted),
                 ),
               ],
             ),
+          ),
+          Text(
+            '$sign${fmt.format(tx.amount)} $currency',
+            style: TabysTheme.mono(size: 13, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _typeLabel(String type) {
+    return switch (type) {
+      'income' => 'Доход',
+      'expense' => 'Расход',
+      'transfer' => 'Перевод',
+      _ => type,
+    };
+  }
+}
+
+// ─── AR Aging Panel ───────────────────────────────────────────────────────────
+
+class _ArAgingPanel extends StatelessWidget {
+  final AsyncValue<List<Invoice>> invoicesAsync;
+
+  const _ArAgingPanel({required this.invoicesAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    return invoicesAsync.when(
+      loading: () => _DashPanel(
+        title: 'Дебиторка',
+        subtitle: '',
+        child: const SizedBox(height: 60),
+      ),
+      error: (_, __) => const SizedBox(),
+      data: (invoices) {
+        final pending = invoices
+            .where((i) =>
+                i.status == 'pending' || i.status == 'partial')
+            .toList();
+
+        final now = DateTime.now();
+        double current = 0, days30 = 0, days60 = 0;
+        for (final inv in pending) {
+          if (inv.dueDate == null || inv.dueDate!.isAfter(now)) {
+            current += inv.totalAmount;
+          } else {
+            final overdue = now.difference(inv.dueDate!).inDays;
+            if (overdue <= 30) {
+              days30 += inv.totalAmount;
+            } else {
+              days60 += inv.totalAmount;
+            }
+          }
+        }
+        final total = current + days30 + days60;
+
+        return _DashPanel(
+          title: 'Дебиторка',
+          subtitle: total > 0
+              ? 'Итого: ${NumberFormat('#,##0', 'ru_RU').format(total)}'
+              : 'Нет задолженностей',
+          child: total == 0
+              ? Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text('Всё оплачено',
+                      style: GoogleFonts.inter(
+                          fontSize: 13, color: TColors.muted)),
+                )
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: Column(
+                    children: [
+                      _AgingBar('Текущие', current, total, TColors.blue),
+                      const SizedBox(height: 10),
+                      _AgingBar(
+                          '1–30 дней', days30, total, const Color(0xFFF5A524)),
+                      const SizedBox(height: 10),
+                      _AgingBar(
+                          '31–60 дней', days60, total, TColors.red),
+                    ],
+                  ),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _AgingBar extends StatelessWidget {
+  final String label;
+  final double value;
+  final double total;
+  final Color color;
+
+  const _AgingBar(this.label, this.value, this.total, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = total > 0 ? (value / total).clamp(0.0, 1.0) : 0.0;
+    final fmt = NumberFormat('#,##0', 'ru_RU');
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 80,
+          child: Text(label,
+              style: GoogleFonts.inter(
+                  fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+        ),
+        Expanded(
+          child: Container(
+            height: 6,
+            decoration: BoxDecoration(
+              color: TColors.border,
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: FractionallySizedBox(
+              alignment: Alignment.centerLeft,
+              widthFactor: pct,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        SizedBox(
+          width: 72,
+          child: Text(
+            fmt.format(value),
+            style: TabysTheme.mono(size: 11, color: color),
+            textAlign: TextAlign.right,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Tasks Panel ──────────────────────────────────────────────────────────────
+
+class _TasksPanel extends StatelessWidget {
+  final AsyncValue<List<Task>> tasksAsync;
+  const _TasksPanel({required this.tasksAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    return tasksAsync.when(
+      loading: () => _DashPanel(
+          title: 'Задачи', subtitle: '', child: const SizedBox(height: 60)),
+      error: (_, __) => const SizedBox(),
+      data: (tasks) {
+        final active = tasks
+            .where((t) => t.status != 'done' && t.status != 'cancelled')
+            .take(4)
+            .toList();
+        final done =
+            tasks.where((t) => t.status == 'done').take(1).toList();
+        final shown = [...active, ...done];
+
+        return _DashPanel(
+          title: 'Задачи',
+          subtitle: '${active.length} активных',
+          child: Column(
+            children: shown.isEmpty
+                ? [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Text('Задач нет',
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: TColors.muted)),
+                    )
+                  ]
+                : shown.map((t) => _TaskItem(task: t)).toList(),
           ),
         );
       },
@@ -817,483 +914,137 @@ class _PeriodComparisonCard extends ConsumerWidget {
   }
 }
 
-class _CompareItem extends StatelessWidget {
-  final String label;
-  final double current;
-  final double pct;
-  final NumberFormat fmt;
-  final String sym;
-  final bool positiveIsGood;
+class _TaskItem extends StatelessWidget {
+  final Task task;
+  const _TaskItem({required this.task});
 
-  const _CompareItem({
-    required this.label,
-    required this.current,
-    required this.pct,
-    required this.fmt,
-    required this.sym,
-    required this.positiveIsGood,
+  @override
+  Widget build(BuildContext context) {
+    final isDone = task.status == 'done';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        border: Border(
+            bottom: BorderSide(
+                color: TColors.border.withValues(alpha: .5))),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: isDone ? TColors.green : Colors.transparent,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(
+                  color: isDone ? TColors.green : TColors.border2,
+                  width: 1.5),
+            ),
+            child: isDone
+                ? const Icon(Icons.check, size: 10, color: Colors.white)
+                : null,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  task.title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: isDone ? TColors.muted : TColors.text,
+                    decoration:
+                        isDone ? TextDecoration.lineThrough : null,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (task.dueDate != null)
+                  Text(
+                    'Срок: ${DateFormat('d MMM', 'ru').format(task.dueDate!)}',
+                    style: GoogleFonts.inter(
+                        fontSize: 10, color: TColors.muted),
+                  ),
+              ],
+            ),
+          ),
+          isDone
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: TColors.greenBg,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text('Готово',
+                      style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: TColors.green)),
+                )
+              : PriorityBadge(priority: task.priority),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Shared panel shell ───────────────────────────────────────────────────────
+
+class _DashPanel extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget child;
+  final Widget? action;
+
+  const _DashPanel({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+    this.action,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isUp = pct > 0;
-    final isNeutral = pct == 0;
-    final isGood = isUp == positiveIsGood;
-    final color = isNeutral
-        ? Colors.grey
-        : (isGood ? Colors.green[700]! : Colors.red[700]!);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: TextStyle(fontSize: 11, color: Colors.grey[600])),
-        Text(
-          '${fmt.format(current)} $sym',
-          style: const TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-        if (!isNeutral)
-          Row(
-            children: [
-              Icon(
-                isUp ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 12,
-                color: color,
-              ),
-              Text(
-                '${pct.abs().toStringAsFixed(1)}%',
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500),
-              ),
-              Text(
-                ' vs прошлый',
-                style:
-                    TextStyle(fontSize: 10, color: Colors.grey[500]),
-              ),
-            ],
-          )
-        else
-          Text('= как прошлый',
-              style: TextStyle(fontSize: 11, color: Colors.grey[500])),
-      ],
-    );
-  }
-}
-
-// ─── Chart Legend Item ────────────────────────────────────────────────────────
-
-class _ChartLegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
-
-  const _ChartLegendItem({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      Container(
-        width: 14,
-        height: 3,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(2),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: TColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TColors.border),
       ),
-      const SizedBox(width: 4),
-      Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-    ]);
-  }
-}
-
-// ─── Break-Even Card ──────────────────────────────────────────────────────────
-
-class _BreakEvenCard extends ConsumerWidget {
-  const _BreakEvenCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    if (company == null) return const SizedBox();
-    final txsAsync = ref.watch(transactionsProvider);
-
-    return txsAsync.when(
-      data: (txs) {
-        final income = txs
-            .where((t) => t.type == 'income')
-            .fold(0.0, (s, t) => s + t.amount);
-        final expense = txs
-            .where((t) => t.type == 'expense')
-            .fold(0.0, (s, t) => s + t.amount);
-        if (expense == 0) return const SizedBox();
-
-        final pct = (income / expense).clamp(0.0, 1.0);
-        final isBreakEven = income >= expense;
-        final fmt = NumberFormat('#,##0', 'ru_RU');
-        final sym = _currencySymbol(company.currency);
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  Icon(
-                    isBreakEven
-                        ? Icons.check_circle_outline
-                        : Icons.timelapse,
-                    color: isBreakEven ? Colors.green : Colors.orange,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Точка безубыточности (месяц)',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ]),
-                const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    backgroundColor: Colors.grey.shade200,
-                    valueColor: AlwaysStoppedAnimation(
-                        isBreakEven ? Colors.green : Colors.orange),
-                    minHeight: 8,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                isBreakEven
-                    ? Text(
-                        'Достигнута! Прибыль: ${fmt.format(income - expense)} $sym',
-                        style: const TextStyle(
-                            color: Colors.green,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13),
-                      )
-                    : Text(
-                        'До безубыточности: ${fmt.format(expense - income)} $sym'
-                        '  (${(pct * 100).toStringAsFixed(0)}% покрыто)',
-                        style: const TextStyle(
-                            color: Colors.orange,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13),
-                      ),
-              ],
-            ),
-          ),
-        );
-      },
-      loading: () => const SizedBox(),
-      error: (_, __) => const SizedBox(),
-    );
-  }
-}
-
-// ─── Expense Growth Card ──────────────────────────────────────────────────────
-
-class _ExpenseGrowthCard extends ConsumerWidget {
-  const _ExpenseGrowthCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    if (company == null) return const SizedBox();
-    final db = ref.watch(databaseProvider);
-    final now = DateTime.now();
-
-    return FutureBuilder<List<Map<String, double>>>(
-      future: Future.wait([
-        db.getPnLByCategory(
-          company.id,
-          DateTime(now.year, now.month, 1),
-          DateTime(now.year, now.month + 1, 0),
-        ),
-        db.getPnLByCategory(
-          company.id,
-          DateTime(now.year, now.month - 1, 1),
-          DateTime(now.year, now.month, 0),
-        ),
-      ]).then((r) => [r[0], r[1]]),
-      builder: (context, snap) {
-        if (!snap.hasData) return const SizedBox();
-        final cur = snap.data![0];
-        final prev = snap.data![1];
-
-        final growth =
-            <({String name, double cur, double prev, double pct})>[];
-        for (final e in cur.entries) {
-          if (e.value >= 0) continue;
-          final curAbs = e.value.abs();
-          final prevAbs = (prev[e.key] ?? 0).abs();
-          if (prevAbs == 0) continue;
-          final p = (curAbs - prevAbs) / prevAbs * 100;
-          if (p > 0) {
-            growth.add((name: e.key, cur: curAbs, prev: prevAbs, pct: p));
-          }
-        }
-        if (growth.isEmpty) return const SizedBox();
-        growth.sort((a, b) => b.pct.compareTo(a.pct));
-        final top = growth.take(3).toList();
-        final fmt = NumberFormat('#,##0', 'ru_RU');
-        final sym = _currencySymbol(company.currency);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Рост расходов (vs прошлый месяц)',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              color: Colors.amber.shade50,
-              child: Column(
-                children: top
-                    .map((e) => ListTile(
-                          leading: const Icon(Icons.trending_up,
-                              color: Colors.orange),
-                          title: Text(e.name,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w500)),
-                          subtitle: Text(
-                              '${fmt.format(e.cur)} $sym  ←  ${fmt.format(e.prev)} $sym'),
-                          trailing: Text(
-                            '+${e.pct.toStringAsFixed(0)}%',
-                            style: const TextStyle(
-                                color: Colors.orange,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14),
-                          ),
-                          dense: true,
-                        ))
-                    .toList(),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-// ─── Low Stock Card ───────────────────────────────────────────────────────────
-
-class _LowStockCard extends ConsumerWidget {
-  const _LowStockCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final products = ref.watch(productsProvider).valueOrNull ?? [];
-    final lowStock = products
-        .where((p) => p.minQuantity > 0 && p.quantity <= p.minQuantity)
-        .toList();
-
-    if (lowStock.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Склад: низкий остаток',
-          style: Theme.of(context)
-              .textTheme
-              .titleMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          color: Colors.orange.shade50,
-          child: Column(
-            children: lowStock
-                .map((p) => ListTile(
-                      leading: const Icon(Icons.inventory_2_outlined,
-                          color: Colors.orange),
-                      title: Text(p.name,
-                          style: const TextStyle(fontWeight: FontWeight.w500)),
-                      subtitle: Text(
-                        'Остаток: ${_fmtQty(p.quantity)} / мин. ${_fmtQty(p.minQuantity)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          'Заказать',
-                          style: TextStyle(
-                              color: Colors.orange.shade800,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      dense: true,
-                    ))
-                .toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-      ],
-    );
-  }
-}
-
-String _fmtQty(double q) =>
-    q == q.roundToDouble() ? q.toInt().toString() : q.toStringAsFixed(2);
-
-// ─── Health Score Card ────────────────────────────────────────────────────────
-
-class _HealthScoreCard extends ConsumerWidget {
-  const _HealthScoreCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final company = ref.watch(selectedCompanyProvider);
-    if (company == null) return const SizedBox();
-
-    final txs = ref.watch(transactionsProvider).valueOrNull ?? [];
-    final tasks = ref.watch(tasksProvider).valueOrNull ?? [];
-    final db = ref.watch(databaseProvider);
-
-    final income = txs.where((t) => t.type == 'income').fold(0.0, (s, t) => s + t.amount);
-    final expense = txs.where((t) => t.type == 'expense').fold(0.0, (s, t) => s + t.amount);
-
-    // Profit score: 0–40
-    final profitScore = income <= 0
-        ? (expense > 0 ? 0.0 : 20.0)
-        : (((income - expense) / income).clamp(0.0, 1.0) * 40);
-
-    // Task score: 0–30
-    final taskScore = tasks.isEmpty
-        ? 15.0
-        : (tasks.where((t) => t.status == 'done' || t.status == 'cancelled').length /
-                tasks.length *
-                30);
-
-    return FutureBuilder<List<Invoice>>(
-      future: db.watchInvoicesByCompany(company.id).first,
-      builder: (ctx, snap) {
-        final invoices = snap.data ?? [];
-        final now = DateTime.now();
-        final nonCancelled =
-            invoices.where((inv) => inv.status != 'cancelled').toList();
-        final overdue = nonCancelled
-            .where((inv) =>
-                inv.dueDate != null &&
-                inv.dueDate!.isBefore(now) &&
-                inv.status != 'paid')
-            .length;
-        final invoiceScore = nonCancelled.isEmpty
-            ? 15.0
-            : ((nonCancelled.length - overdue) / nonCancelled.length * 30);
-
-        final total = (profitScore + taskScore + invoiceScore).round();
-        final color =
-            total < 40 ? Colors.red : total < 70 ? Colors.orange : Colors.green;
-        final label = total < 40
-            ? 'Критично'
-            : total < 70
-                ? 'Требует внимания'
-                : 'Хорошо';
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: total / 100,
-                        color: color,
-                        backgroundColor: color.withValues(alpha: 0.15),
-                        strokeWidth: 6,
-                      ),
-                      Text(
-                        '$total',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: color),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Финансовое здоровье',
-                          style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Text(label,
-                          style: TextStyle(
-                              color: color,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          _ScoreItem('Прибыль', profitScore.round(), 40),
-                          const SizedBox(width: 16),
-                          _ScoreItem('Инвойсы', invoiceScore.round(), 30),
-                          const SizedBox(width: 16),
-                          _ScoreItem('Задачи', taskScore.round(), 30),
-                        ],
-                      ),
+                      Text(title,
+                          style: GoogleFonts.syne(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: TColors.text)),
+                      if (subtitle.isNotEmpty)
+                        Text(subtitle,
+                            style: GoogleFonts.inter(
+                                fontSize: 11, color: TColors.muted)),
                     ],
                   ),
                 ),
+                if (action != null) action!,
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-}
-
-class _ScoreItem extends StatelessWidget {
-  final String label;
-  final int score;
-  final int max;
-
-  const _ScoreItem(this.label, this.score, this.max);
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = score / max;
-    final color =
-        pct < 0.4 ? Colors.red : pct < 0.7 ? Colors.orange : Colors.green;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-        Text('$score/$max',
-            style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color)),
-      ],
+          const Divider(height: 1),
+          child,
+        ],
+      ),
     );
   }
 }

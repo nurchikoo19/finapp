@@ -337,6 +337,7 @@ class AppDatabase extends _$AppDatabase {
     for (final tx in recurring) {
       if (tx.recurrenceInterval == null) continue;
       DateTime next = tx.date;
+      outer:
       while (true) {
         switch (tx.recurrenceInterval) {
           case 'daily':
@@ -349,7 +350,7 @@ class AppDatabase extends _$AppDatabase {
             next = DateTime(next.year, next.month + 1, next.day);
             break;
           default:
-            break;
+            break outer; // unknown interval — stop processing this tx
         }
         if (next.isAfter(now)) break;
         // Проверяем, не создана ли уже транзакция на эту дату
@@ -705,7 +706,12 @@ class AppDatabase extends _$AppDatabase {
 LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
+    final oldFile = File(p.join(dbFolder.path, 'finapp.sqlite'));
     final file = File(p.join(dbFolder.path, 'tabys.sqlite'));
+    // One-time migration: rename legacy DB file for existing users.
+    if (await oldFile.exists() && !await file.exists()) {
+      await oldFile.rename(file.path);
+    }
     return NativeDatabase.createInBackground(file);
   });
 }

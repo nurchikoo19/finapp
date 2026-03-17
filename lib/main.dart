@@ -5,6 +5,7 @@ import 'app.dart';
 import 'providers/theme_provider.dart';
 import 'providers/database_provider.dart';
 import 'screens/onboarding/onboarding_screen.dart';
+import 'theme/tabys_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,35 +23,12 @@ class MyApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
 
-    final colorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF1565C0),
-      brightness: Brightness.light,
-    );
-    final darkColorScheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF1565C0),
-      brightness: Brightness.dark,
-    );
-
-    final baseTheme = ThemeData(
-      useMaterial3: true,
-      inputDecorationTheme: const InputDecorationTheme(
-        border: OutlineInputBorder(),
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      ),
-      cardTheme: const CardThemeData(
-        elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(12)),
-        ),
-      ),
-    );
-
     return MaterialApp(
       title: 'Tabys',
       debugShowCheckedModeBanner: false,
       themeMode: themeMode,
-      theme: baseTheme.copyWith(colorScheme: colorScheme),
-      darkTheme: baseTheme.copyWith(colorScheme: darkColorScheme),
+      theme: TabysTheme.dark,
+      darkTheme: TabysTheme.dark,
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
