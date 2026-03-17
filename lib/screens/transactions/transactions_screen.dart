@@ -278,7 +278,7 @@ class _TxTile extends ConsumerWidget {
     Color color;
     IconData icon;
     if (isTransfer) {
-      color = Colors.blue;
+      color = TColors.blue;
       icon = Icons.swap_horiz;
     } else if (isIncome) {
       color = Colors.green;
@@ -318,8 +318,12 @@ class _TxTile extends ConsumerWidget {
           ],
         ),
         subtitle: Text(
-          '${accMap[tx.accountId] ?? '?'} · ${DateFormat('dd.MM.yyyy').format(tx.date)}'
-          '${tx.categoryId != null ? ' · ${catMap[tx.categoryId!]}' : ''}',
+          isTransfer && tx.toAccountId != null
+              ? '${accMap[tx.accountId] ?? '?'} → ${accMap[tx.toAccountId!] ?? '?'}'
+                '${tx.exchangeRate != null ? ' · ×${tx.exchangeRate!.toStringAsFixed(2)}' : ''}'
+                ' · ${DateFormat('dd.MM.yyyy').format(tx.date)}'
+              : '${accMap[tx.accountId] ?? '?'} · ${DateFormat('dd.MM.yyyy').format(tx.date)}'
+                '${tx.categoryId != null ? ' · ${catMap[tx.categoryId!]}' : ''}',
           style: const TextStyle(fontSize: 11),
         ),
         trailing: Row(
@@ -386,6 +390,7 @@ class _TxTile extends ConsumerWidget {
                           date: tx.date,
                           categoryId: Value(tx.categoryId),
                           toAccountId: Value(tx.toAccountId),
+                          exchangeRate: Value(tx.exchangeRate),
                           description: Value(tx.description),
                           isFixed: Value(tx.isFixed),
                           isRecurring: Value(tx.isRecurring),
