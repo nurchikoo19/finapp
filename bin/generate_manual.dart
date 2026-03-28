@@ -67,7 +67,7 @@ void main() async {
                 children: [
                   pw.SizedBox(height: 100),
                   pw.Text(
-                    'FinApp',
+                    'Tabys',
                     style: pw.TextStyle(
                       font: fontBold,
                       fontSize: 52,
@@ -133,7 +133,7 @@ void main() async {
         // ── 1. ВВЕДЕНИЕ ─────────────────────────────────────────────────
         _sectionTitle('1. Введение', fontBold),
         _body(
-          'FinApp — это локальное финансовое приложение для малого и среднего бизнеса. '
+          'Tabys — это локальное финансовое приложение для малого и среднего бизнеса. '
           'Все данные хранятся на вашем устройстве в базе данных SQLite. '
           'Интернет нужен только для синхронизации с Google Sheets.',
           font,
@@ -192,7 +192,7 @@ void main() async {
         // ── 3. КОМПАНИИ ──────────────────────────────────────────────────
         _sectionTitle('3. Управление компаниями', fontBold),
         _body(
-          'FinApp поддерживает работу с несколькими компаниями. '
+          'Tabys поддерживает работу с несколькими компаниями. '
           'Переключение между ними — через выпадающее меню в шапке приложения.',
           font,
         ),
@@ -605,7 +605,7 @@ void main() async {
         _sectionTitle('13. Часто задаваемые вопросы', fontBold),
         _faq(
           'Где хранятся данные?',
-          'На вашем устройстве в файле finapp.sqlite. '
+          'На вашем устройстве в файле tabys.sqlite. '
           'Windows: в папке Documents. '
           'Android: во внутреннем хранилище приложения.',
           font,
@@ -662,7 +662,7 @@ void main() async {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.Text(
-                'FinApp v1.0',
+                'Tabys v1.0',
                 style: pw.TextStyle(font: fontBold, fontSize: 14, color: _blue),
               ),
               pw.SizedBox(height: 4),
@@ -679,7 +679,7 @@ void main() async {
 
   final outputPath =
       '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME']}'
-      '\\Documents\\finapp_manual.pdf';
+      '\\Documents\\tabys_manual.pdf';
   final file = File(outputPath);
   await file.writeAsBytes(await doc.save());
   print('✓ PDF сохранён: $outputPath');
@@ -698,9 +698,9 @@ pw.Widget _header(pw.Context ctx, pw.Font font, pw.Font fontBold) {
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text('FinApp — Руководство пользователя',
+        pw.Text('Tabys — Руководство пользователя',
             style: pw.TextStyle(font: font, fontSize: 9, color: _grey)),
-        pw.Text('finapp',
+        pw.Text('tabys',
             style: pw.TextStyle(font: fontBold, fontSize: 9, color: _blue)),
       ],
     ),

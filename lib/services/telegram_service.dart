@@ -1,3 +1,4 @@
+import 'dart:developer' as dev;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
@@ -34,7 +35,8 @@ class TelegramService {
         'parse_mode': 'HTML',
       }).timeout(const Duration(seconds: 10));
       return resp.statusCode == 200;
-    } catch (_) {
+    } catch (e, st) {
+      dev.log('TelegramService.sendMessage error: $e', error: e, stackTrace: st);
       return false;
     }
   }
@@ -105,7 +107,7 @@ class TelegramService {
         DateFormat('MMMM yyyy', 'ru').format(now);
 
     final buf = StringBuffer();
-    buf.writeln('📊 <b>FinApp — $companyName</b>');
+    buf.writeln('📊 <b>Tabys — $companyName</b>');
     buf.writeln(
         DateFormat('dd.MM.yyyy', 'ru').format(now));
     buf.writeln();

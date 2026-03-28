@@ -186,7 +186,7 @@ class _CreateCompanyPageState extends ConsumerState<_CreateCompanyPage> {
       name: _nameCtrl.text.trim(),
       currency: Value(_currency),
     ));
-    // companiesProvider will emit new data → _HomeRouter switches to FinApp
+    // companiesProvider will emit new data → _HomeRouter switches to TabysApp
   }
 
   @override

@@ -15,6 +15,9 @@ class Transactions extends Table {
   BoolColumn get isFixed => boolean().withDefault(const Constant(false))();
   // For transfers: target account id
   IntColumn get toAccountId => integer().nullable()();
+  // For cross-currency transfers: units of source currency per 1 unit of destination currency.
+  // null means same currency (rate = 1.0).
+  RealColumn get exchangeRate => real().nullable()();
   // Recurring: if true, auto-creates copies on schedule
   BoolColumn get isRecurring => boolean().withDefault(const Constant(false))();
   // daily / weekly / monthly — null if not recurring

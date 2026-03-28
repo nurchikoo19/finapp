@@ -85,7 +85,7 @@ void main() async {
                   ),
                   pw.SizedBox(height: 24),
                   pw.Text(
-                    'FinApp',
+                    'Tabys',
                     style: pw.TextStyle(
                       font: fontBold, fontSize: 56, color: PdfColors.white,
                     ),
@@ -183,20 +183,20 @@ void main() async {
         _subsection('2.1 Найти файл приложения', fontBold),
         _body('Файл .exe находится по пути:', font),
         _codebox(
-          r'finapp\build\windows\x64\runner\Debug\finapp.exe',
+          r'tabys\build\windows\x64\runner\Debug\tabys.exe',
           font,
           fontBold,
         ),
         pw.SizedBox(height: 10),
         _subsection('2.2 Создать ярлык на рабочем столе', fontBold),
         _steps([
-          r'Откройте папку: finapp\build\windows\x64\runner\Debug\',
-          'Найдите файл finapp.exe',
+          r'Откройте папку: tabys\build\windows\x64\runner\Debug\',
+          'Найдите файл tabys.exe',
           'Нажмите правой кнопкой мыши → «Отправить» → «Рабочий стол (создать ярлык)»',
           'Ярлык появится на рабочем столе — двойной клик для запуска',
         ], font, fontBold),
         pw.SizedBox(height: 10),
-        _tipBox('Совет: переименуйте ярлык в «FinApp» для удобства.', font, fontItalic),
+        _tipBox('Совет: переименуйте ярлык в «Tabys» для удобства.', font, fontItalic),
         pw.SizedBox(height: 16),
 
         // ── 3. Способ 2: flutter run ────────────────────────────────────
@@ -226,13 +226,13 @@ void main() async {
         _subsection('3.3 Запустить приложение', fontBold),
         _steps([
           'Откройте терминал (PowerShell или CMD)',
-          r'Перейдите в папку: cd C:\Users\ИМЯ\Desktop\CLaude\finapp',
+          r'Перейдите в папку: cd C:\Users\ИМЯ\Desktop\CLaude\tabys',
           'Установите зависимости: flutter pub get',
           'Запустите: flutter run -d windows',
           'Подождите 20–40 секунд — приложение откроется',
         ], font, fontBold),
         _codebox(
-          'cd C:\\Users\\ИМЯ\\Desktop\\CLaude\\finapp\n'
+          'cd C:\\Users\\ИМЯ\\Desktop\\CLaude\\tabys\n'
           'flutter pub get\n'
           'flutter run -d windows',
           font, fontBold,
@@ -251,7 +251,7 @@ void main() async {
         _body('Release-версия работает быстрее и не требует подключения к Flutter.', font),
         _codebox(
           'flutter build windows --release\n\n'
-          r'# Готовый exe будет в: build\windows\x64\runner\Release\finapp.exe',
+          r'# Готовый exe будет в: build\windows\x64\runner\Release\tabys.exe',
           font, fontBold,
         ),
         pw.SizedBox(height: 6),
@@ -565,7 +565,7 @@ void main() async {
             1: const pw.FlexColumnWidth(2.5),
           },
           rows: [
-            ['База данных', r'C:\Users\ИМЯ\Documents\finapp.sqlite'],
+            ['База данных', r'C:\Users\ИМЯ\Documents\tabys.sqlite'],
             ['CSV экспорт', r'C:\Users\ИМЯ\Documents\*.csv'],
             ['Настройки темы', 'Реестр Windows (SharedPreferences)'],
             ['Google токен', 'Реестр Windows (SharedPreferences)'],
@@ -574,7 +574,7 @@ void main() async {
         ),
         pw.SizedBox(height: 10),
         _tipBox(
-          'Резервная копия: скопируйте файл finapp.sqlite в надёжное место. '
+          'Резервная копия: скопируйте файл tabys.sqlite в надёжное место. '
           'Это полная копия всех данных приложения.',
           font, fontItalic,
         ),
@@ -585,7 +585,7 @@ void main() async {
 
         _faq(
           'Приложение не запускается (белый экран)',
-          'Проверьте что все .dll файлы находятся в той же папке что и finapp.exe. '
+          'Проверьте что все .dll файлы находятся в той же папке что и tabys.exe. '
           'Не запускайте .exe отдельно от папки.',
           font, fontBold,
         ),
@@ -639,7 +639,7 @@ void main() async {
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
               pw.Text(
-                'FinApp v1.0',
+                'Tabys v1.0',
                 style: pw.TextStyle(
                   font: fontBold, fontSize: 16, color: PdfColors.white,
                 ),
@@ -663,7 +663,7 @@ void main() async {
 
   final outputPath =
       '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME']}'
-      '\\Documents\\finapp_windows_guide.pdf';
+      '\\Documents\\tabys_windows_guide.pdf';
   await File(outputPath).writeAsBytes(await doc.save());
   print('✓ PDF сохранён: $outputPath');
 }
@@ -733,9 +733,9 @@ pw.Widget _header(pw.Context ctx, pw.Font font, pw.Font fontBold) {
     child: pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
       children: [
-        pw.Text('FinApp — Установка и использование на Windows',
+        pw.Text('Tabys — Установка и использование на Windows',
             style: pw.TextStyle(font: font, fontSize: 9, color: _grey)),
-        pw.Text('finapp', style: pw.TextStyle(font: fontBold, fontSize: 9, color: _blue)),
+        pw.Text('tabys', style: pw.TextStyle(font: fontBold, fontSize: 9, color: _blue)),
       ],
     ),
   );

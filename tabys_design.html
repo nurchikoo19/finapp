@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabys — Бизнес финансы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:      #08101E;
+  --surface:  #0E1928;
+  --card:     #111F33;
+  --card2:    #152340;
+  --border:   #1E3054;
+  --border2:  #253D66;
+  --gold:     #D4A843;
+  --gold-bg:  rgba(212,168,67,.08);
+  --gold-glow:rgba(212,168,67,.18);
+  --green:    #2DD4A0;
+  --green-bg: rgba(45,212,160,.08);
+  --red:      #F06464;
+  --red-bg:   rgba(240,100,100,.08);
+  --blue:     #5B9CF6;
+  --blue-bg:  rgba(91,156,246,.08);
+  --text:     #EBF2FF;
+  --muted:    #5A7299;
+  --muted2:   #3D5478;
+  --sidebar-w: 220px;
+}
+
+html, body { height: 100%; background: var(--ink); color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; overflow: hidden; }
+
+.shell { display: flex; height: 100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w); min-width: var(--sidebar-w);
+  background: var(--surface); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden;
+}
+.sidebar::before {
+  content: ''; position: absolute; bottom: -40px; left: -60px;
+  width: 300px; height: 220px;
+  background: radial-gradient(ellipse, rgba(212,168,67,.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.logo {
+  padding: 22px 20px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-icon {
+  width: 28px; height: 28px; background: var(--gold);
+  clip-path: polygon(50% 0%, 100% 100%, 0% 100%); flex-shrink: 0;
+}
+.logo-word { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 20px; letter-spacing: .5px; }
+.logo-word span { color: var(--gold); }
+
+.company-box {
+  margin: 12px 12px 8px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; cursor: pointer; transition: border-color .2s;
+}
+.company-box:hover { border-color: var(--border2); }
+.company-label { font-size: 10px; color: var(--muted); letter-spacing: .5px; text-transform: uppercase; }
+.company-name { font-size: 13px; font-weight: 600; margin-top: 2px; display: flex; align-items: center; justify-content: space-between; }
+
+.nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+.nav-section { padding: 16px 16px 4px; font-size: 10px; color: var(--muted2); letter-spacing: .8px; text-transform: uppercase; font-weight: 600; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 16px; margin: 1px 8px; border-radius: 8px;
+  color: var(--muted); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all .15s; position: relative;
+}
+.nav-item:hover { background: var(--card); color: var(--text); }
+.nav-item.active {
+  background: var(--gold-bg); color: var(--gold);
+  border: 1px solid rgba(212,168,67,.15);
+}
+.nav-item.active::before {
+  content: ''; position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 18px; background: var(--gold); border-radius: 2px;
+}
+.badge {
+  margin-left: auto; background: var(--red-bg); color: var(--red);
+  font-size: 10px; font-family: 'IBM Plex Mono', monospace;
+  padding: 1px 6px; border-radius: 10px; border: 1px solid rgba(240,100,100,.2);
+}
+
+.sidebar-bottom { padding: 12px; border-top: 1px solid var(--border); }
+.profile-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background .15s;
+}
+.profile-row:hover { background: var(--card); }
+.avatar {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--gold), #8B5E1F);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-weight: 700; font-size: 12px;
+  color: var(--ink); flex-shrink: 0;
+}
+.profile-name { font-size: 12px; font-weight: 600; }
+.profile-role { font-size: 10px; color: var(--muted); }
+
+/* ── MAIN ── */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.topbar {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 56px;
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 16px; }
+.page-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; }
+.period-select {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 5px 12px;
+  font-size: 12px; color: var(--muted); cursor: pointer;
+}
+.period-select strong { color: var(--text); font-weight: 500; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--card); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted); transition: all .15s; position: relative;
+}
+.icon-btn:hover { border-color: var(--border2); color: var(--text); }
+.notif-dot {
+  position: absolute; top: 6px; right: 6px; width: 6px; height: 6px;
+  background: var(--gold); border-radius: 50%; border: 1.5px solid var(--surface);
+}
+.btn-primary {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--gold); color: var(--ink); border: none;
+  border-radius: 8px; padding: 7px 14px;
+  font-size: 13px; font-weight: 700; font-family: 'Inter', sans-serif;
+  cursor: pointer; transition: all .15s;
+}
+.btn-primary:hover { background: #C8972A; transform: translateY(-1px); }
+
+.content {
+  flex: 1; overflow-y: auto; padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+.content::-webkit-scrollbar { width: 4px; }
+.content::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── KPI ── */
+.kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.kpi-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 18px 20px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s, transform .15s; cursor: default;
+}
+.kpi-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+.kpi-card::after {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 80px; height: 80px; border-radius: 50%; opacity: .35;
+  transform: translate(30px, -30px);
+}
+.kpi-card.gold::after  { background: radial-gradient(circle, var(--gold), transparent); }
+.kpi-card.green::after { background: radial-gradient(circle, var(--green), transparent); }
+.kpi-card.red::after   { background: radial-gradient(circle, var(--red), transparent); }
+.kpi-card.blue::after  { background: radial-gradient(circle, var(--blue), transparent); }
+
+.kpi-label { font-size: 11px; color: var(--muted); letter-spacing: .4px; text-transform: uppercase; font-weight: 600; margin-bottom: 10px; }
+.kpi-value { font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600; letter-spacing: -.5px; line-height: 1; margin-bottom: 10px; }
+.kpi-sym { font-size: 14px; color: var(--muted); margin-right: 2px; }
+.kpi-footer { display: flex; align-items: center; gap: 6px; }
+.kpi-change { font-size: 11px; font-weight: 600; font-family: 'IBM Plex Mono', monospace; padding: 2px 7px; border-radius: 6px; }
+.kpi-change.up   { color: var(--green); background: var(--green-bg); }
+.kpi-change.down { color: var(--red); background: var(--red-bg); }
+.kpi-period { font-size: 11px; color: var(--muted); }
+
+/* ── PANELS ── */
+.mid-row { display: grid; grid-template-columns: 1fr 360px; gap: 14px; }
+.bot-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.panel-header {
+  padding: 16px 20px 12px; display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+.panel-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.panel-action { font-size: 11px; color: var(--blue); cursor: pointer; font-weight: 500; }
+.panel-action:hover { text-decoration: underline; }
+
+.chart-wrap { padding: 16px 20px 12px; }
+.chart-legend { display: flex; gap: 16px; padding: 0 20px 14px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.legend-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* Accounts */
+.acc-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 20px; border-bottom: 1px solid var(--border);
+  transition: background .15s; cursor: pointer;
+}
+.acc-item:last-child { border-bottom: none; }
+.acc-item:hover { background: rgba(255,255,255,.02); }
+.acc-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.acc-icon.cash { background: var(--gold-bg); }
+.acc-icon.bank { background: var(--blue-bg); }
+.acc-icon.card { background: var(--green-bg); }
+.acc-name { font-size: 13px; font-weight: 500; }
+.acc-type { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.acc-bal { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; text-align: right; }
+.acc-cur { font-size: 10px; color: var(--muted); margin-top: 1px; text-align: right; }
+.acc-bal.neg { color: var(--red); }
+
+/* Transactions */
+.tx-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; border-bottom: 1px solid rgba(30,48,84,.5);
+  transition: background .15s; cursor: pointer;
+}
+.tx-item:last-child { border-bottom: none; }
+.tx-item:hover { background: rgba(255,255,255,.02); }
+.tx-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.tx-dot.income   { background: var(--green); box-shadow: 0 0 6px rgba(45,212,160,.4); }
+.tx-dot.expense  { background: var(--red);   box-shadow: 0 0 6px rgba(240,100,100,.3); }
+.tx-dot.transfer { background: var(--blue);  box-shadow: 0 0 6px rgba(91,156,246,.3); }
+.tx-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-cat  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.tx-amount { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.tx-amount.income   { color: var(--green); }
+.tx-amount.expense  { color: var(--red); }
+.tx-amount.transfer { color: var(--blue); }
+.tx-date { font-size: 10px; color: var(--muted); margin-top: 1px; text-align: right; }
+
+/* Aging */
+.aging-list { padding: 12px 20px; display: flex; flex-direction: column; gap: 10px; }
+.aging-item { display: flex; align-items: center; gap: 12px; }
+.aging-label { width: 100px; font-size: 11px; flex-shrink: 0; }
+.aging-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.aging-bar { height: 100%; border-radius: 3px; transition: width .6s ease; }
+.aging-val { width: 80px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+
+/* Tasks */
+.task-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 20px; border-bottom: 1px solid rgba(30,48,84,.5);
+  cursor: pointer; transition: background .15s; user-select: none;
+}
+.task-item:last-child { border-bottom: none; }
+.task-item:hover { background: rgba(255,255,255,.02); }
+.task-check {
+  width: 16px; height: 16px; border: 1.5px solid var(--border2);
+  border-radius: 4px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.task-check.done { background: var(--green); border-color: var(--green); }
+.task-name { font-size: 13px; font-weight: 500; }
+.task-name.done { text-decoration: line-through; color: var(--muted); }
+.task-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.task-priority { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 5px; flex-shrink: 0; }
+.task-priority.high   { color: var(--red);   background: var(--red-bg); }
+.task-priority.medium { color: var(--gold);  background: var(--gold-bg); }
+.task-priority.low    { color: var(--muted); background: var(--card2); }
+
+/* Status bar */
+.status-bar {
+  height: 28px; background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 20px; flex-shrink: 0;
+}
+.status-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--muted2); }
+.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+@keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:.5 } }
+.live { animation: pulse 2s ease-in-out infinite; }
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.kpi-card { animation: fadeUp .4s ease both; }
+.kpi-card:nth-child(1) { animation-delay: .05s; }
+.kpi-card:nth-child(2) { animation-delay: .10s; }
+.kpi-card:nth-child(3) { animation-delay: .15s; }
+.kpi-card:nth-child(4) { animation-delay: .20s; }
+.panel { animation: fadeUp .4s ease both; animation-delay: .25s; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon"></div>
+      <div class="logo-word">T<span>A</span>BYS</div>
+    </div>
+    <div class="company-box">
+      <div class="company-label">Компания</div>
+      <div class="company-name">Nurch Build LLC <span style="opacity:.4;font-size:12px">▾</span></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Обзор</div>
+      <div class="nav-item active"><span style="width:16px;text-align:center">◈</span> Дашборд</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">◫</span> Счета</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">⟺</span> Транзакции</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">▦</span> Отчёты</div>
+      <div class="nav-section">Бизнес</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">❐</span> Сделки <span class="badge">3</span></div>
+      <div class="nav-item"><span style="width:16px;text-align:center">☑</span> Задачи</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">◎</span> Зарплата</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">☰</span> Договоры</div>
+      <div class="nav-section">Операции</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">⬡</span> Склад</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">◉</span> Сотрудники</div>
+      <div class="nav-item"><span style="width:16px;text-align:center">◫</span> Категории</div>
+    </nav>
+    <div class="sidebar-bottom">
+      <div class="profile-row">
+        <div class="avatar">NB</div>
+        <div style="flex:1">
+          <div class="profile-name">Нурчолпон</div>
+          <div class="profile-role">Администратор</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-title">Дашборд</div>
+        <div class="period-select">
+          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <strong>Март 2026</strong>
+          <span style="opacity:.4">▾</span>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="icon-btn">
+          <div class="notif-dot"></div>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+          </svg>
+        </div>
+        <button class="btn-primary">
+          <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Транзакция
+        </button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- KPI -->
+      <div class="kpi-row">
+        <div class="kpi-card gold">
+          <div class="kpi-label">Общий баланс</div>
+          <div class="kpi-value"><span class="kpi-sym">с</span> 4 728 500</div>
+          <div class="kpi-footer"><span class="kpi-change up">+12.4%</span><span class="kpi-period">vs прошлый месяц</span></div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label">Доходы / март</div>
+          <div class="kpi-value"><span class="kpi-sym">с</span> 1 850 000</div>
+          <div class="kpi-footer"><span class="kpi-change up">+8.1%</span><span class="kpi-period">vs февраль</span></div>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Расходы / март</div>
+          <div class="kpi-value"><span class="kpi-sym">с</span> 920 000</div>
+          <div class="kpi-footer"><span class="kpi-change down">+3.2%</span><span class="kpi-period">vs февраль</span></div>
+        </div>
+        <div class="kpi-card blue">
+          <div class="kpi-label">Чистая прибыль</div>
+          <div class="kpi-value"><span class="kpi-sym">с</span> 930 000</div>
+          <div class="kpi-footer"><span class="kpi-change up">+14.8%</span><span class="kpi-period">маржа 50.3%</span></div>
+        </div>
+      </div>
+
+      <!-- Mid row -->
+      <div class="mid-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div><div class="panel-title">Доходы и расходы</div><div class="panel-sub">Последние 6 месяцев</div></div>
+            <span class="panel-action">Подробнее →</span>
+          </div>
+          <div class="chart-wrap"><canvas id="plChart" height="160"></canvas></div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Доходы</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div> Расходы</div>
+            <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div> Прибыль</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div><div class="panel-title">Счета</div><div class="panel-sub">4 активных счёта</div></div>
+            <span class="panel-action">Все →</span>
+          </div>
+          <div class="acc-item"><div class="acc-icon cash">💵</div><div style="flex:1"><div class="acc-name">Касса основная</div><div class="acc-type">Наличные</div></div><div><div class="acc-bal">1 240 000</div><div class="acc-cur">KGS</div></div></div>
+          <div class="acc-item"><div class="acc-icon bank">🏦</div><div style="flex:1"><div class="acc-name">Деловой Банк КР</div><div class="acc-type">Банк · Текущий</div></div><div><div class="acc-bal">2 988 500</div><div class="acc-cur">KGS</div></div></div>
+          <div class="acc-item"><div class="acc-icon card">💳</div><div style="flex:1"><div class="acc-name">Visa корпоративная</div><div class="acc-type">Карта · USD</div></div><div><div class="acc-bal">5 800</div><div class="acc-cur">USD</div></div></div>
+          <div class="acc-item"><div class="acc-icon bank">💹</div><div style="flex:1"><div class="acc-name">Резервный счёт</div><div class="acc-type">Банк · Сберегательный</div></div><div><div class="acc-bal neg">−120 000</div><div class="acc-cur">KGS</div></div></div>
+        </div>
+      </div>
+
+      <!-- Bot row -->
+      <div class="bot-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div><div class="panel-title">Последние транзакции</div><div class="panel-sub">17 марта 2026</div></div>
+            <span class="panel-action">Все →</span>
+          </div>
+          <div class="tx-item"><div class="tx-dot income"></div><div style="flex:1;min-width:0"><div class="tx-name">Оплата инвойса №INV-048</div><div class="tx-cat">Продажи · Касса основная</div></div><div style="text-align:right;flex-shrink:0"><div class="tx-amount income">+380 000 с</div><div class="tx-date">17.03 · 14:22</div></div></div>
+          <div class="tx-item"><div class="tx-dot expense"></div><div style="flex:1;min-width:0"><div class="tx-name">Аренда офиса — март</div><div class="tx-cat">Аренда · Деловой Банк</div></div><div style="text-align:right;flex-shrink:0"><div class="tx-amount expense">−85 000 с</div><div class="tx-date">17.03 · 10:00</div></div></div>
+          <div class="tx-item"><div class="tx-dot transfer"></div><div style="flex:1;min-width:0"><div class="tx-name">Конвертация USD → KGS</div><div class="tx-cat">Перевод · 1 USD = 89.40 с</div></div><div style="text-align:right;flex-shrink:0"><div class="tx-amount transfer">1 000 USD</div><div class="tx-date">16.03 · 18:45</div></div></div>
+          <div class="tx-item"><div class="tx-dot expense"></div><div style="flex:1;min-width:0"><div class="tx-name">Зарплата — февраль</div><div class="tx-cat">Персонал · 5 сотрудников</div></div><div style="text-align:right;flex-shrink:0"><div class="tx-amount expense">−320 000 с</div><div class="tx-date">15.03 · 09:00</div></div></div>
+          <div class="tx-item"><div class="tx-dot income"></div><div style="flex:1;min-width:0"><div class="tx-name">Аванс — Клиент «Альфа»</div><div class="tx-cat">Предоплата · Деловой Банк</div></div><div style="text-align:right;flex-shrink:0"><div class="tx-amount income">+200 000 с</div><div class="tx-date">14.03 · 16:10</div></div></div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div class="panel">
+            <div class="panel-header">
+              <div><div class="panel-title">Дебиторка</div><div class="panel-sub">Итого: 1 240 000 с</div></div>
+              <span class="panel-action">Детали →</span>
+            </div>
+            <div class="aging-list">
+              <div class="aging-item"><div class="aging-label" style="color:var(--blue)">Текущие</div><div class="aging-bar-wrap"><div class="aging-bar" style="width:60%;background:var(--blue)"></div></div><div class="aging-val" style="color:var(--blue)">744 000</div></div>
+              <div class="aging-item"><div class="aging-label" style="color:#F5A524">1–30 дней</div><div class="aging-bar-wrap"><div class="aging-bar" style="width:28%;background:#F5A524"></div></div><div class="aging-val" style="color:#F5A524">347 000</div></div>
+              <div class="aging-item"><div class="aging-label" style="color:var(--red)">31–60 дней</div><div class="aging-bar-wrap"><div class="aging-bar" style="width:12%;background:var(--red)"></div></div><div class="aging-val" style="color:var(--red)">149 000</div></div>
+            </div>
+          </div>
+
+          <div class="panel" style="flex:1">
+            <div class="panel-header">
+              <div><div class="panel-title">Задачи</div><div class="panel-sub">3 активных</div></div>
+              <span class="panel-action">Все →</span>
+            </div>
+            <div id="taskList">
+              <div class="task-item" data-done="false">
+                <div class="task-check"></div>
+                <div style="flex:1"><div class="task-name">Выставить инвойс клиенту «Бета»</div><div class="task-meta">Срок: 18 марта</div></div>
+                <div class="task-priority high">Высокий</div>
+              </div>
+              <div class="task-item" data-done="false">
+                <div class="task-check"></div>
+                <div style="flex:1"><div class="task-name">Продление договора №C-014</div><div class="task-meta">Срок: 25 марта</div></div>
+                <div class="task-priority medium">Средний</div>
+              </div>
+              <div class="task-item" data-done="false">
+                <div class="task-check"></div>
+                <div style="flex:1"><div class="task-name">Сверка по складу (Q1)</div><div class="task-meta">Срок: 31 марта</div></div>
+                <div class="task-priority low">Низкий</div>
+              </div>
+              <div class="task-item" data-done="true">
+                <div class="task-check done"></div>
+                <div style="flex:1"><div class="task-name done">Подать налоговый отчёт</div><div class="task-meta">Выполнено: 10 марта</div></div>
+                <div class="task-priority low">Готово</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item"><div class="status-dot live"></div> Данные актуальны</div>
+      <div class="status-item">· Версия 1.0</div>
+      <div class="status-item">· KGS / USD / RUB / EUR</div>
+      <div style="margin-left:auto;font-size:10px;color:var(--muted2)">Tabys — Бизнес финансы Кыргызстана</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Chart
+const ctx = document.getElementById('plChart').getContext('2d');
+const months = ['Окт', 'Ноя', 'Дек', 'Янв', 'Фев', 'Мар'];
+const income   = [1200, 980, 1450, 1600, 1710, 1850];
+const expenses = [ 650, 720,  800,  870,  892,  920];
+const profit   = income.map((v,i) => v - expenses[i]);
+const gridColor = 'rgba(30,48,84,.6)';
+const mono = { family: 'IBM Plex Mono, monospace', size: 10 };
+
+new Chart(ctx, {
+  data: {
+    labels: months,
+    datasets: [
+      { type:'bar',  label:'Доходы',  data:income,   backgroundColor:'rgba(45,212,160,.18)', borderColor:'rgba(45,212,160,.7)', borderWidth:1, borderRadius:5, order:2 },
+      { type:'bar',  label:'Расходы', data:expenses, backgroundColor:'rgba(240,100,100,.15)', borderColor:'rgba(240,100,100,.6)', borderWidth:1, borderRadius:5, order:2 },
+      { type:'line', label:'Прибыль', data:profit,   borderColor:'#D4A843', backgroundColor:'rgba(212,168,67,.06)', borderWidth:2, pointBackgroundColor:'#D4A843', pointRadius:3, pointHoverRadius:5, fill:true, tension:.4, order:1 },
+    ],
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode:'index', intersect:false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor:'#152340', borderColor:'#1E3054', borderWidth:1,
+        titleFont: mono, bodyFont: mono,
+        callbacks: { label: c => ' ' + c.dataset.label + ': ' + (c.raw * 1000).toLocaleString('ru-RU') + ' с' },
+      },
+    },
+    scales: {
+      x: { grid:{color:gridColor}, ticks:{color:'#5A7299',font:mono}, border:{color:gridColor} },
+      y: { grid:{color:gridColor}, ticks:{color:'#5A7299',font:mono,callback:v=>(v>=1000?(v/1000)+'K':v)}, border:{color:gridColor} },
+    },
+  },
+});
+
+// Nav
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+  });
+});
+
+// Tasks — toggle with safe DOM manipulation
+document.querySelectorAll('.task-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const isDone = item.dataset.done === 'true';
+    if (isDone) return;
+    item.dataset.done = 'true';
+
+    const check = item.querySelector('.task-check');
+    check.classList.add('done');
+
+    // Build SVG checkmark via DOM (no innerHTML)
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '9'); svg.setAttribute('height', '9');
+    svg.setAttribute('fill', 'none'); svg.setAttribute('viewBox', '0 0 24 24');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('stroke', 'white'); path.setAttribute('stroke-width', '3');
+    path.setAttribute('stroke-linecap', 'round'); path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('d', 'M5 13l4 4L19 7');
+    svg.appendChild(path);
+    check.appendChild(svg);
+
+    const name = item.querySelector('.task-name');
+    if (name) name.classList.add('done');
+  });
+});
+</script>
+</body>
+</html>

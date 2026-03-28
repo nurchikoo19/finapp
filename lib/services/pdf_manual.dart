@@ -170,7 +170,7 @@ class PdfManualService {
               decoration: const pw.BoxDecoration(color: _primary),
               child: pw.Column(
                 children: [
-                  pw.Text('FinApp',
+                  pw.Text('Tabys',
                       style: pw.TextStyle(
                           font: fontBold,
                           fontSize: 48,
@@ -237,7 +237,7 @@ class PdfManualService {
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('FinApp — Руководство пользователя',
+              pw.Text('Tabys — Руководство пользователя',
                   style: pw.TextStyle(
                       font: fontBold, fontSize: 9, color: _primary)),
               pw.Text('Стр. ${ctx.pageNumber}',
@@ -293,7 +293,7 @@ class PdfManualService {
           sectionHeader('1. ВВЕДЕНИЕ И ВОЗМОЖНОСТИ', fontBold),
           pw.SizedBox(height: 8),
           para(
-            'FinApp — это финансовое приложение для малого и среднего бизнеса. '
+            'Tabys — это финансовое приложение для малого и среднего бизнеса. '
             'Оно позволяет вести учёт транзакций, выставлять счета клиентам, '
             'управлять сотрудниками, отслеживать договоры и получать подробную аналитику.',
             font,
@@ -442,7 +442,7 @@ class PdfManualService {
           sectionHeader('4. ИНСТРУКЦИЯ ДЛЯ DESKTOP (WINDOWS)', fontBold),
           pw.SizedBox(height: 6),
           para('Приложение устанавливается как обычная Windows-программа. '
-              'Файл finapp.exe можно создать ярлык на рабочем столе через Настройки → Windows.',
+              'Файл tabys.exe можно создать ярлык на рабочем столе через Настройки → Windows.',
               font),
 
           // 4.1 Дашборд
@@ -600,13 +600,13 @@ class PdfManualService {
 
           subHeader('5.1  Установка APK', fontBold),
           numberedItem(1,
-              'Скачайте файл finapp.apk с официального источника.', font, fontBold),
+              'Скачайте файл tabys.apk с официального источника.', font, fontBold),
           numberedItem(2,
               'На Android откройте Настройки → Безопасность → включите "Установка из неизвестных источников".', font, fontBold),
           numberedItem(3,
               'Откройте APK-файл через файловый менеджер и нажмите "Установить".', font, fontBold),
           numberedItem(4,
-              'После установки найдите FinApp в списке приложений и запустите.', font, fontBold),
+              'После установки найдите Tabys в списке приложений и запустите.', font, fontBold),
           pw.SizedBox(height: 4),
           warningBox(
             'На некоторых устройствах Samsung/Xiaomi может потребоваться дополнительно '
@@ -632,7 +632,7 @@ class PdfManualService {
           bullet('На узких экранах карточки дашборда располагаются в 2 колонки вместо 3.', font),
           bullet('PDF-файлы сохраняются в папку "Документы" на устройстве.', font),
           bullet('CSV-файлы сохраняются в "Документы" и открываются через Google Таблицы или Excel Mobile.', font),
-          bullet('Резервная копия создаётся в "Документы/FinApp_backup_[дата].db".', font),
+          bullet('Резервная копия создаётся в "Документы/Tabys_backup_[дата].db".', font),
           bullet('База данных хранится локально на устройстве — данные не уходят в интернет.', font),
           divider(),
 
@@ -642,7 +642,7 @@ class PdfManualService {
           sectionHeader('6. РАБОТА С НЕСКОЛЬКИМИ СОТРУДНИКАМИ', fontBold),
           pw.SizedBox(height: 8),
           para(
-            'FinApp позволяет добавить любое количество сотрудников и распределять между ними задачи, '
+            'Tabys позволяет добавить любое количество сотрудников и распределять между ними задачи, '
             'инвойсы и зарплатные записи. Это не многопользовательская система (каждый работает '
             'на своём устройстве), но позволяет вести полный учёт по команде.',
             font,
@@ -781,8 +781,8 @@ class PdfManualService {
           subHeader('7.1  Создание Telegram-бота', fontBold),
           numberedItem(1, 'Откройте Telegram и найдите бота @BotFather (официальный бот Telegram).', font, fontBold),
           numberedItem(2, 'Напишите команду /newbot', font, fontBold),
-          numberedItem(3, 'BotFather спросит имя бота — введите любое (например, "Мой FinApp бот").', font, fontBold),
-          numberedItem(4, 'Затем спросит username — введите уникальное имя, заканчивающееся на "bot" (например, myfinapp_bot).', font, fontBold),
+          numberedItem(3, 'BotFather спросит имя бота — введите любое (например, "Мой Tabys бот").', font, fontBold),
+          numberedItem(4, 'Затем спросит username — введите уникальное имя, заканчивающееся на "bot" (например, mytabys_bot).', font, fontBold),
           numberedItem(5,
               'BotFather выдаст токен вида: 1234567890:ABCdefGHIjklMNOpqrsTUVwxyz. Скопируйте его.', font, fontBold),
 
@@ -798,7 +798,7 @@ class PdfManualService {
             font, fontBold,
           ),
 
-          subHeader('7.3  Настройка в FinApp', fontBold),
+          subHeader('7.3  Настройка в Tabys', fontBold),
           numberedItem(1, 'Откройте боковое меню → Настройки (⚙️).', font, fontBold),
           numberedItem(2, 'Найдите секцию "Telegram уведомления".', font, fontBold),
           numberedItem(3, 'Вставьте Bot Token в поле "Bot Token".', font, fontBold),
@@ -816,7 +816,7 @@ class PdfManualService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text('📊 FinApp — Моя компания',
+                pw.Text('📊 Tabys — Моя компания',
                     style: pw.TextStyle(font: fontBold, fontSize: 10)),
                 pw.Text('12.05.2025', style: small(font)),
                 pw.SizedBox(height: 6),
@@ -853,7 +853,7 @@ class PdfManualService {
           numberedItem(1, 'Откройте Настройки → секция "Резервная копия".', font, fontBold),
           numberedItem(2, 'Нажмите "Создать резервную копию".', font, fontBold),
           numberedItem(3,
-              'Файл FinApp_backup_[дата].db сохранится в папку "Документы".', font, fontBold),
+              'Файл Tabys_backup_[дата].db сохранится в папку "Документы".', font, fontBold),
           numberedItem(4, 'Скопируйте файл в облако (Google Drive, OneDrive) для надёжности.', font, fontBold),
 
           subHeader('8.2  Восстановление из резервной копии', fontBold),
@@ -885,7 +885,7 @@ class PdfManualService {
             ),
             child: pw.Column(
               children: [
-                pw.Text('FinApp — Финансовое приложение для бизнеса',
+                pw.Text('Tabys — Финансовое приложение для бизнеса',
                     style: pw.TextStyle(
                         font: fontBold, fontSize: 11, color: _primary)),
                 pw.SizedBox(height: 4),
@@ -903,7 +903,7 @@ class PdfManualService {
 
     // ── Сохранение ────────────────────────────────────────────────────────────
     final dir = await getApplicationDocumentsDirectory();
-    final file = File('${dir.path}/FinApp_Manual.pdf');
+    final file = File('${dir.path}/Tabys_Manual.pdf');
     await file.writeAsBytes(await doc.save());
     return file;
   }
@@ -926,7 +926,7 @@ class PdfManualService {
     final file = await generateAndSave();
     await Printing.layoutPdf(
       onLayout: (_) async => file.readAsBytes(),
-      name: 'FinApp_Manual',
+      name: 'Tabys_Manual',
     );
   }
 }
