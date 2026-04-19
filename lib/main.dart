@@ -37,7 +37,8 @@ class MyApp extends ConsumerWidget {
         border: OutlineInputBorder(),
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
-      cardTheme: const CardThemeData(
+      // ИСПРАВЛЕНО: CardThemeData заменено на CardTheme
+      cardTheme: const CardTheme(
         elevation: 2,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -60,7 +61,8 @@ class MyApp extends ConsumerWidget {
         Locale('ru'),
         Locale('en'),
       ],
-      locale: const Locale('ru'),
+      // ИСПРАВЛЕНО: Закомментировал жесткую локаль, чтобы язык определялся системой
+      // locale: const Locale('ru'), 
       home: const _HomeRouter(),
     );
   }
@@ -72,13 +74,22 @@ class _HomeRouter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final companiesAsync = ref.watch(companiesProvider);
+    
     return companiesAsync.when(
       data: (companies) =>
           companies.isEmpty ? const OnboardingScreen() : const FinApp(),
       loading: () => const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       ),
-      error: (_, __) => const FinApp(),
+      // ИСПРАВЛЕНО: Теперь показываем ошибку, а не пускаем в сломанное приложение
+      error: (error, stackTrace) => Scaffold(
+        body: Center(
+          child: Text(
+            'Ошибка загрузки данных: $error',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
     );
   }
 }
